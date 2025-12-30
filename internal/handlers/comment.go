@@ -3,8 +3,10 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
+
+	// "io"
+
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -13,6 +15,7 @@ import (
 	"wx_channel/internal/utils"
 
 	"github.com/qtgolang/SunnyNet/SunnyNet"
+	nf_http "github.com/qtgolang/SunnyNet/src/http"
 )
 
 // CommentHandler 评论数据处理器
@@ -30,19 +33,27 @@ func (h *CommentHandler) getConfig() *config.Config {
 }
 
 // HandleSaveCommentData 处理保存评论数据请求
-func (h *CommentHandler) HandleSaveCommentData(Conn *SunnyNet.HttpConn) bool {
-	path := Conn.Request.URL.Path
+func (h *CommentHandler) HandleSaveCommentData(Conn SunnyNet.ConnHTTP) bool {
+	u, err := url.Parse(Conn.URL())
+	if err != nil {
+		return false
+	}
+	path := u.Path
 	if path != "/__wx_channels_api/save_comment_data" {
 		return false
 	}
 
 	// 授权校验
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		if Conn.Request.Header.Get("X-Local-Auth") != h.getConfig().SecretToken {
+		auth := ""
+		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
+			auth = v[0]
+		}
+		if auth != h.getConfig().SecretToken {
 			// 记录认证失败
-			clientIP := Conn.Request.RemoteAddr
+			clientIP := "unknown" // ConnHTTP interface doesn't expose RemoteAddr
 			utils.LogAuthFailed(path, clientIP)
-			headers := http.Header{}
+			headers := make(nf_http.Header)
 			headers.Set("Content-Type", "application/json")
 			headers.Set("X-Content-Type-Options", "nosniff")
 			Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
@@ -52,7 +63,10 @@ func (h *CommentHandler) HandleSaveCommentData(Conn *SunnyNet.HttpConn) bool {
 
 	// CORS校验
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := Conn.Request.Header.Get("Origin")
+		origin := ""
+		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
+			origin = v[0]
+		}
 		if origin != "" {
 			allowed := false
 			for _, o := range h.getConfig().AllowedOrigins {
@@ -64,7 +78,7 @@ func (h *CommentHandler) HandleSaveCommentData(Conn *SunnyNet.HttpConn) bool {
 			if !allowed {
 				// 记录CORS拦截
 				utils.LogCORSBlocked(origin, path)
-				headers := http.Header{}
+				headers := make(nf_http.Header)
 				headers.Set("Content-Type", "application/json")
 				headers.Set("X-Content-Type-Options", "nosniff")
 				Conn.StopRequest(403, `{"success":false,"error":"forbidden_origin"}`, headers)
@@ -81,16 +95,7 @@ func (h *CommentHandler) HandleSaveCommentData(Conn *SunnyNet.HttpConn) bool {
 		Timestamp            int64                    `json:"timestamp"`
 	}
 
-	body, err := io.ReadAll(Conn.Request.Body)
-	if err != nil {
-		utils.HandleError(err, "读取save_comment_data请求体")
-		h.sendErrorResponse(Conn, err)
-		return true
-	}
-
-	if err := Conn.Request.Body.Close(); err != nil {
-		utils.HandleError(err, "关闭请求体")
-	}
+	body := Conn.GetRequestBody()
 
 	// 检查body是否为空
 	if len(body) == 0 {
@@ -152,13 +157,13 @@ func (h *CommentHandler) saveCommentData(comments []map[string]interface{}, vide
 		// 清理标题作为文件名
 		cleanTitle := utils.CleanFilename(videoTitle)
 		// CleanFilename 已经处理了长度限制（100字符），这里不需要再次限制
-		fileName = fmt.Sprintf("%s_%s_%s.json", 
-			saveTime.Format("150405"), 
-			videoID, 
+		fileName = fmt.Sprintf("%s_%s_%s.json",
+			saveTime.Format("150405"),
+			videoID,
 			cleanTitle)
 	} else {
-		fileName = fmt.Sprintf("%s_%s_video_%s.json", 
-			saveTime.Format("150405"), 
+		fileName = fmt.Sprintf("%s_%s_video_%s.json",
+			saveTime.Format("150405"),
 			videoID,
 			saveTime.Format("20060102_150405"))
 	}
@@ -206,7 +211,7 @@ func (h *CommentHandler) saveCommentData(comments []map[string]interface{}, vide
 		utils.Info("评论数据已保存: %s (%d条评论) -> %s", videoTitle, totalComments, relativePath)
 		utils.LogInfo("[评论保存] 标题=%s | 采集=%d | 路径=%s", videoTitle, totalComments, relativePath)
 	}
-	
+
 	// 记录详细评论采集日志
 	utils.LogComment(videoID, videoTitle, totalComments, true)
 
@@ -214,14 +219,17 @@ func (h *CommentHandler) saveCommentData(comments []map[string]interface{}, vide
 }
 
 // sendEmptyResponse 发送空JSON响应
-func (h *CommentHandler) sendEmptyResponse(Conn *SunnyNet.HttpConn) {
-	headers := http.Header{}
+func (h *CommentHandler) sendEmptyResponse(Conn SunnyNet.ConnHTTP) {
+	headers := make(nf_http.Header)
 	headers.Set("Content-Type", "application/json")
 	headers.Set("X-Content-Type-Options", "nosniff")
 
 	// CORS
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := Conn.Request.Header.Get("Origin")
+		origin := ""
+		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
+			origin = v[0]
+		}
 		if origin != "" {
 			for _, o := range h.getConfig().AllowedOrigins {
 				if o == origin {
@@ -240,14 +248,17 @@ func (h *CommentHandler) sendEmptyResponse(Conn *SunnyNet.HttpConn) {
 }
 
 // sendErrorResponse 发送错误响应
-func (h *CommentHandler) sendErrorResponse(Conn *SunnyNet.HttpConn, err error) {
-	headers := http.Header{}
+func (h *CommentHandler) sendErrorResponse(Conn SunnyNet.ConnHTTP, err error) {
+	headers := make(nf_http.Header)
 	headers.Set("Content-Type", "application/json")
 	headers.Set("X-Content-Type-Options", "nosniff")
 
 	// CORS
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := Conn.Request.Header.Get("Origin")
+		origin := ""
+		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
+			origin = v[0]
+		}
 		if origin != "" {
 			for _, o := range h.getConfig().AllowedOrigins {
 				if o == origin {

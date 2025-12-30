@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"crypto/rand"
@@ -9,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -22,6 +24,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/qtgolang/SunnyNet/SunnyNet"
+	nf_http "github.com/qtgolang/SunnyNet/src/http"
 )
 
 // UploadHandler 文件上传处理器
@@ -60,23 +63,26 @@ func (h *UploadHandler) getDownloadsDir() (string, error) {
 }
 
 // HandleInitUpload 处理分片上传初始化请求
-func (h *UploadHandler) HandleInitUpload(Conn *SunnyNet.HttpConn) bool {
-	path := Conn.Request.URL.Path
+func (h *UploadHandler) HandleInitUpload(Conn SunnyNet.ConnHTTP) bool {
+	u, err := url.Parse(Conn.URL())
+	if err != nil {
+		return false
+	}
+	path := u.Path
 	if path != "/__wx_channels_api/init_upload" {
 		return false
 	}
 
+	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		if Conn.Request.Header.Get("X-Local-Auth") != h.getConfig().SecretToken {
-			headers := http.Header{}
-			headers.Set("Content-Type", "application/json")
-			headers.Set("X-Content-Type-Options", "nosniff")
-			Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
+		auth := reqHeaders.Get("X-Local-Auth")
+		if auth != h.getConfig().SecretToken {
+			h.sendJSONResponse(Conn, 401, []byte(`{"success":false,"error":"unauthorized"}`))
 			return true
 		}
 	}
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := Conn.Request.Header.Get("Origin")
+		origin := reqHeaders.Get("Origin")
 		if origin != "" {
 			allowed := false
 			for _, o := range h.getConfig().AllowedOrigins {
@@ -86,10 +92,7 @@ func (h *UploadHandler) HandleInitUpload(Conn *SunnyNet.HttpConn) bool {
 				}
 			}
 			if !allowed {
-				headers := http.Header{}
-				headers.Set("Content-Type", "application/json")
-				headers.Set("X-Content-Type-Options", "nosniff")
-				Conn.StopRequest(403, `{"success":false,"error":"forbidden_origin"}`, headers)
+				h.sendJSONResponse(Conn, 403, []byte(`{"success":false,"error":"forbidden_origin"}`))
 				return true
 			}
 		}
@@ -148,28 +151,31 @@ func (h *UploadHandler) HandleInitUpload(Conn *SunnyNet.HttpConn) bool {
 }
 
 // HandleUploadChunk 处理分片上传请求
-func (h *UploadHandler) HandleUploadChunk(Conn *SunnyNet.HttpConn) bool {
+func (h *UploadHandler) HandleUploadChunk(Conn SunnyNet.ConnHTTP) bool {
 	// 并发限流（分片）
 	if h.chunkSem != nil {
 		h.chunkSem <- struct{}{}
 		defer func() { <-h.chunkSem }()
 	}
-	path := Conn.Request.URL.Path
+	u, err := url.Parse(Conn.URL())
+	if err != nil {
+		return false
+	}
+	path := u.Path
 	if path != "/__wx_channels_api/upload_chunk" {
 		return false
 	}
 
+	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		if Conn.Request.Header.Get("X-Local-Auth") != h.getConfig().SecretToken {
-			headers := http.Header{}
-			headers.Set("Content-Type", "application/json")
-			headers.Set("X-Content-Type-Options", "nosniff")
-			Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
+		auth := reqHeaders.Get("X-Local-Auth")
+		if auth != h.getConfig().SecretToken {
+			h.sendJSONResponse(Conn, 401, []byte(`{"success":false,"error":"unauthorized"}`))
 			return true
 		}
 	}
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := Conn.Request.Header.Get("Origin")
+		origin := reqHeaders.Get("Origin")
 		if origin != "" {
 			allowed := false
 			for _, o := range h.getConfig().AllowedOrigins {
@@ -179,26 +185,37 @@ func (h *UploadHandler) HandleUploadChunk(Conn *SunnyNet.HttpConn) bool {
 				}
 			}
 			if !allowed {
-				headers := http.Header{}
-				headers.Set("Content-Type", "application/json")
-				headers.Set("X-Content-Type-Options", "nosniff")
-				Conn.StopRequest(403, `{"success":false,"error":"forbidden_origin"}`, headers)
+				h.sendJSONResponse(Conn, 403, []byte(`{"success":false,"error":"forbidden_origin"}`))
 				return true
 			}
 		}
 	}
 
+	// 构建 mock request 来解析 multipart form
+	// 创建一个新的 http.Request
+	bodyBytes := Conn.GetRequestBody()
+	mockReq, err := http.NewRequest("POST", Conn.URL(), bytes.NewReader(bodyBytes))
+	if err != nil {
+		utils.HandleError(err, "创建mock请求")
+		h.sendErrorResponse(Conn, err)
+		return true
+	}
+	// 设置 Content-Type
+	if ct := Conn.GetRequestHeader()["Content-Type"]; len(ct) > 0 {
+		mockReq.Header.Set("Content-Type", ct[0])
+	}
+
 	// 解析multipart表单
-	err := Conn.Request.ParseMultipartForm(h.getConfig().MaxUploadSize)
+	err = mockReq.ParseMultipartForm(h.getConfig().MaxUploadSize)
 	if err != nil {
 		utils.HandleError(err, "解析multipart表单")
 		h.sendErrorResponse(Conn, err)
 		return true
 	}
 
-	uploadId := Conn.Request.FormValue("uploadId")
-	indexStr := Conn.Request.FormValue("index")
-	totalStr := Conn.Request.FormValue("total")
+	uploadId := mockReq.FormValue("uploadId")
+	indexStr := mockReq.FormValue("index")
+	totalStr := mockReq.FormValue("total")
 
 	if uploadId == "" || indexStr == "" || totalStr == "" {
 		h.sendErrorResponse(Conn, fmt.Errorf("missing fields"))
@@ -221,7 +238,7 @@ func (h *UploadHandler) HandleUploadChunk(Conn *SunnyNet.HttpConn) bool {
 
 	utils.Info("[分片上传] 接收分片: uploadId=%s, 分片索引=%d/%d", uploadId, index+1, total)
 
-	file, _, err := Conn.Request.FormFile("chunk")
+	file, _, err := mockReq.FormFile("chunk")
 	if err != nil {
 		utils.HandleError(err, "获取分片文件")
 		h.sendErrorResponse(Conn, err)
@@ -229,13 +246,13 @@ func (h *UploadHandler) HandleUploadChunk(Conn *SunnyNet.HttpConn) bool {
 	}
 	defer file.Close()
 
-	checksum := Conn.Request.FormValue("checksum")
-	algo := strings.ToLower(Conn.Request.FormValue("algo"))
+	checksum := mockReq.FormValue("checksum")
+	algo := strings.ToLower(mockReq.FormValue("algo"))
 	if algo == "" {
 		algo = "md5"
 	}
 	var expectedSize int64 = -1
-	if sz := Conn.Request.FormValue("size"); sz != "" {
+	if sz := mockReq.FormValue("size"); sz != "" {
 		if v, convErr := strconv.ParseInt(sz, 10, 64); convErr == nil {
 			expectedSize = v
 		}
@@ -350,20 +367,28 @@ func (h *UploadHandler) HandleUploadChunk(Conn *SunnyNet.HttpConn) bool {
 }
 
 // HandleCompleteUpload 处理分片上传完成请求
-func (h *UploadHandler) HandleCompleteUpload(Conn *SunnyNet.HttpConn) bool {
+func (h *UploadHandler) HandleCompleteUpload(Conn SunnyNet.ConnHTTP) bool {
 	// 并发限流（合并）
 	if h.mergeSem != nil {
 		h.mergeSem <- struct{}{}
 		defer func() { <-h.mergeSem }()
 	}
-	path := Conn.Request.URL.Path
+	u, err := url.Parse(Conn.URL())
+	if err != nil {
+		return false
+	}
+	path := u.Path
 	if path != "/__wx_channels_api/complete_upload" {
 		return false
 	}
 
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		if Conn.Request.Header.Get("X-Local-Auth") != h.getConfig().SecretToken {
-			headers := http.Header{}
+		auth := ""
+		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
+			auth = v[0]
+		}
+		if auth != h.getConfig().SecretToken {
+			headers := make(nf_http.Header)
 			headers.Set("Content-Type", "application/json")
 			headers.Set("X-Content-Type-Options", "nosniff")
 			Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
@@ -371,7 +396,10 @@ func (h *UploadHandler) HandleCompleteUpload(Conn *SunnyNet.HttpConn) bool {
 		}
 	}
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := Conn.Request.Header.Get("Origin")
+		origin := ""
+		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
+			origin = v[0]
+		}
 		if origin != "" {
 			allowed := false
 			for _, o := range h.getConfig().AllowedOrigins {
@@ -381,7 +409,7 @@ func (h *UploadHandler) HandleCompleteUpload(Conn *SunnyNet.HttpConn) bool {
 				}
 			}
 			if !allowed {
-				headers := http.Header{}
+				headers := make(nf_http.Header)
 				headers.Set("Content-Type", "application/json")
 				headers.Set("X-Content-Type-Options", "nosniff")
 				Conn.StopRequest(403, `{"success":false,"error":"forbidden_origin"}`, headers)
@@ -390,16 +418,7 @@ func (h *UploadHandler) HandleCompleteUpload(Conn *SunnyNet.HttpConn) bool {
 		}
 	}
 
-	body, err := io.ReadAll(Conn.Request.Body)
-	if err != nil {
-		utils.HandleError(err, "读取complete_upload请求体")
-		h.sendErrorResponse(Conn, err)
-		return true
-	}
-
-	if err := Conn.Request.Body.Close(); err != nil {
-		utils.HandleError(err, "关闭请求体")
-	}
+	body := Conn.GetRequestBody()
 
 	var req struct {
 		UploadId   string `json:"uploadId"`
@@ -528,15 +547,23 @@ func (h *UploadHandler) HandleCompleteUpload(Conn *SunnyNet.HttpConn) bool {
 }
 
 // HandleSaveVideo 处理直接保存视频文件请求
-func (h *UploadHandler) HandleSaveVideo(Conn *SunnyNet.HttpConn) bool {
-	path := Conn.Request.URL.Path
+func (h *UploadHandler) HandleSaveVideo(Conn SunnyNet.ConnHTTP) bool {
+	u, err := url.Parse(Conn.URL())
+	if err != nil {
+		return false
+	}
+	path := u.Path
 	if path != "/__wx_channels_api/save_video" {
 		return false
 	}
 
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		if Conn.Request.Header.Get("X-Local-Auth") != h.getConfig().SecretToken {
-			headers := http.Header{}
+		auth := ""
+		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
+			auth = v[0]
+		}
+		if auth != h.getConfig().SecretToken {
+			headers := make(nf_http.Header)
 			headers.Set("Content-Type", "application/json")
 			headers.Set("X-Content-Type-Options", "nosniff")
 			Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
@@ -544,7 +571,10 @@ func (h *UploadHandler) HandleSaveVideo(Conn *SunnyNet.HttpConn) bool {
 		}
 	}
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := Conn.Request.Header.Get("Origin")
+		origin := ""
+		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
+			origin = v[0]
+		}
 		if origin != "" {
 			allowed := false
 			for _, o := range h.getConfig().AllowedOrigins {
@@ -554,7 +584,7 @@ func (h *UploadHandler) HandleSaveVideo(Conn *SunnyNet.HttpConn) bool {
 				}
 			}
 			if !allowed {
-				headers := http.Header{}
+				headers := make(nf_http.Header)
 				headers.Set("Content-Type", "application/json")
 				headers.Set("X-Content-Type-Options", "nosniff")
 				Conn.StopRequest(403, `{"success":false,"error":"forbidden_origin"}`, headers)
@@ -565,8 +595,21 @@ func (h *UploadHandler) HandleSaveVideo(Conn *SunnyNet.HttpConn) bool {
 
 	utils.Info("🔄 save_video: 开始处理请求")
 
+	// 构建 mock request 来解析 multipart form
+	bodyBytes := Conn.GetRequestBody()
+	mockReq, err := http.NewRequest("POST", Conn.URL(), bytes.NewReader(bodyBytes))
+	if err != nil {
+		utils.HandleError(err, "创建mock请求")
+		h.sendErrorResponse(Conn, err)
+		return true
+	}
+	// 设置 Content-Type
+	if ct := Conn.GetRequestHeader()["Content-Type"]; len(ct) > 0 {
+		mockReq.Header.Set("Content-Type", ct[0])
+	}
+
 	// 解析multipart表单
-	err := Conn.Request.ParseMultipartForm(h.getConfig().MaxUploadSize)
+	err = mockReq.ParseMultipartForm(h.getConfig().MaxUploadSize)
 	if err != nil {
 		utils.HandleError(err, "解析表单数据")
 		h.sendErrorResponse(Conn, err)
@@ -575,7 +618,7 @@ func (h *UploadHandler) HandleSaveVideo(Conn *SunnyNet.HttpConn) bool {
 
 	utils.Info("✅ save_video: 表单解析成功")
 
-	file, header, err := Conn.Request.FormFile("video")
+	file, header, err := mockReq.FormFile("video")
 	if err != nil {
 		utils.HandleError(err, "获取视频文件")
 		h.sendErrorResponse(Conn, err)
@@ -585,9 +628,9 @@ func (h *UploadHandler) HandleSaveVideo(Conn *SunnyNet.HttpConn) bool {
 
 	utils.Info("接收上传: %s, 报告大小: %d bytes", header.Filename, header.Size)
 
-	filename := Conn.Request.FormValue("filename")
-	authorName := Conn.Request.FormValue("authorName")
-	isEncrypted := Conn.Request.FormValue("isEncrypted") == "true"
+	filename := mockReq.FormValue("filename")
+	authorName := mockReq.FormValue("authorName")
+	isEncrypted := mockReq.FormValue("isEncrypted") == "true"
 
 	// 创建作者文件夹路径
 	authorFolder := utils.CleanFolderName(authorName)
@@ -674,16 +717,24 @@ func (h *UploadHandler) HandleSaveVideo(Conn *SunnyNet.HttpConn) bool {
 }
 
 // HandleSaveCover 处理保存封面图片请求
-func (h *UploadHandler) HandleSaveCover(Conn *SunnyNet.HttpConn) bool {
-	path := Conn.Request.URL.Path
+func (h *UploadHandler) HandleSaveCover(Conn SunnyNet.ConnHTTP) bool {
+	u, err := url.Parse(Conn.URL())
+	if err != nil {
+		return false
+	}
+	path := u.Path
 	if path != "/__wx_channels_api/save_cover" {
 		return false
 	}
 
 	// 授权校验
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		if Conn.Request.Header.Get("X-Local-Auth") != h.getConfig().SecretToken {
-			headers := http.Header{}
+		auth := ""
+		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
+			auth = v[0]
+		}
+		if auth != h.getConfig().SecretToken {
+			headers := make(nf_http.Header)
 			headers.Set("Content-Type", "application/json")
 			headers.Set("X-Content-Type-Options", "nosniff")
 			Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
@@ -691,7 +742,10 @@ func (h *UploadHandler) HandleSaveCover(Conn *SunnyNet.HttpConn) bool {
 		}
 	}
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := Conn.Request.Header.Get("Origin")
+		origin := ""
+		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
+			origin = v[0]
+		}
 		if origin != "" {
 			allowed := false
 			for _, o := range h.getConfig().AllowedOrigins {
@@ -701,7 +755,7 @@ func (h *UploadHandler) HandleSaveCover(Conn *SunnyNet.HttpConn) bool {
 				}
 			}
 			if !allowed {
-				headers := http.Header{}
+				headers := make(nf_http.Header)
 				headers.Set("Content-Type", "application/json")
 				headers.Set("X-Content-Type-Options", "nosniff")
 				Conn.StopRequest(403, `{"success":false,"error":"forbidden_origin"}`, headers)
@@ -711,18 +765,12 @@ func (h *UploadHandler) HandleSaveCover(Conn *SunnyNet.HttpConn) bool {
 	}
 
 	// 只处理 POST 请求
-	if Conn.Request.Method != "POST" {
-		h.sendErrorResponse(Conn, fmt.Errorf("method not allowed: %s", Conn.Request.Method))
+	if Conn.Method() != "POST" {
+		h.sendErrorResponse(Conn, fmt.Errorf("method not allowed: %s", Conn.Method()))
 		return true
 	}
 
-	body, err := io.ReadAll(Conn.Request.Body)
-	if err != nil {
-		utils.HandleError(err, "读取save_cover请求体")
-		h.sendErrorResponse(Conn, err)
-		return true
-	}
-	defer Conn.Request.Body.Close()
+	body := Conn.GetRequestBody()
 
 	var req struct {
 		CoverURL  string `json:"coverUrl"`
@@ -849,16 +897,25 @@ func (h *UploadHandler) HandleSaveCover(Conn *SunnyNet.HttpConn) bool {
 }
 
 // HandleDownloadVideo 处理从URL下载视频请求
-func (h *UploadHandler) HandleDownloadVideo(Conn *SunnyNet.HttpConn) bool {
-	path := Conn.Request.URL.Path
+// HandleDownloadVideo 处理从URL下载视频请求
+func (h *UploadHandler) HandleDownloadVideo(Conn SunnyNet.ConnHTTP) bool {
+	u, err := url.Parse(Conn.URL())
+	if err != nil {
+		return false
+	}
+	path := u.Path
 	if path != "/__wx_channels_api/download_video" {
 		return false
 	}
 
 	// 授权校验
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		if Conn.Request.Header.Get("X-Local-Auth") != h.getConfig().SecretToken {
-			headers := http.Header{}
+		auth := ""
+		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
+			auth = v[0]
+		}
+		if auth != h.getConfig().SecretToken {
+			headers := make(nf_http.Header)
 			headers.Set("Content-Type", "application/json")
 			headers.Set("X-Content-Type-Options", "nosniff")
 			Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
@@ -866,7 +923,10 @@ func (h *UploadHandler) HandleDownloadVideo(Conn *SunnyNet.HttpConn) bool {
 		}
 	}
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := Conn.Request.Header.Get("Origin")
+		origin := ""
+		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
+			origin = v[0]
+		}
 		if origin != "" {
 			allowed := false
 			for _, o := range h.getConfig().AllowedOrigins {
@@ -876,7 +936,7 @@ func (h *UploadHandler) HandleDownloadVideo(Conn *SunnyNet.HttpConn) bool {
 				}
 			}
 			if !allowed {
-				headers := http.Header{}
+				headers := make(nf_http.Header)
 				headers.Set("Content-Type", "application/json")
 				headers.Set("X-Content-Type-Options", "nosniff")
 				Conn.StopRequest(403, `{"success":false,"error":"forbidden_origin"}`, headers)
@@ -886,18 +946,12 @@ func (h *UploadHandler) HandleDownloadVideo(Conn *SunnyNet.HttpConn) bool {
 	}
 
 	// 只处理 POST 请求
-	if Conn.Request.Method != "POST" {
-		h.sendErrorResponse(Conn, fmt.Errorf("method not allowed: %s", Conn.Request.Method))
+	if Conn.Method() != "POST" {
+		h.sendErrorResponse(Conn, fmt.Errorf("method not allowed: %s", Conn.Method()))
 		return true
 	}
 
-	body, err := io.ReadAll(Conn.Request.Body)
-	if err != nil {
-		utils.HandleError(err, "读取download_video请求体")
-		h.sendErrorResponse(Conn, err)
-		return true
-	}
-	defer Conn.Request.Body.Close()
+	body := Conn.GetRequestBody()
 
 	var req struct {
 		VideoURL   string `json:"videoUrl"`
@@ -913,355 +967,71 @@ func (h *UploadHandler) HandleDownloadVideo(Conn *SunnyNet.HttpConn) bool {
 	}
 
 	if err := json.Unmarshal(body, &req); err != nil {
-		utils.HandleError(err, "解析download_video JSON")
 		h.sendErrorResponse(Conn, err)
 		return true
 	}
 
 	if req.VideoURL == "" {
-		h.sendErrorResponse(Conn, fmt.Errorf("视频URL不能为空"))
+		h.sendErrorResponse(Conn, fmt.Errorf("missing_url"))
 		return true
 	}
 
-	// 创建作者目录
-	authorFolder := utils.CleanFolderName(req.Author)
-	if authorFolder == "" {
-		authorFolder = "未知作者"
-	}
-
-	downloadsDir, err := h.getDownloadsDir()
-	if err != nil {
-		utils.HandleError(err, "获取下载目录")
-		h.sendErrorResponse(Conn, err)
-		return true
-	}
-	savePath := filepath.Join(downloadsDir, authorFolder)
-
-	if err := utils.EnsureDir(savePath); err != nil {
-		utils.HandleError(err, "创建作者目录")
-		h.sendErrorResponse(Conn, err)
-		return true
-	}
-
-	// 优先使用视频ID进行去重检查（如果提供了视频ID）
-	if !req.ForceSave && req.VideoID != "" && h.csvManager != nil {
-		if exists, err := h.csvManager.RecordExists(req.VideoID); err == nil && exists {
-			// CSV记录中已存在该视频ID，说明已下载过，跳过下载
-			utils.Info("⏭️ [视频下载] 视频ID已存在记录中，跳过下载: ID=%s", req.VideoID)
-			responseData := map[string]interface{}{
-				"success": true,
-				"skipped": true,
-				"message": "视频已下载（基于ID检查）",
-			}
-			responseBytes, _ := json.Marshal(responseData)
-			h.sendJSONResponse(Conn, 200, responseBytes)
-			return true
-		}
-	}
-
-	// 生成文件名：优先使用视频ID确保唯一性
-	filename := utils.GenerateVideoFilename(req.Title, req.VideoID)
-
-	// 检查文件名中是否已经包含分辨率信息（避免重复添加）
-	hasResolutionInFilename := false
-	if req.Width > 0 && req.Height > 0 {
-		resolutionPattern := fmt.Sprintf("_%dx%d", req.Width, req.Height)
-		hasResolutionInFilename = strings.Contains(filename, resolutionPattern)
-	} else if req.Resolution != "" {
-		cleanResolution := strings.ReplaceAll(req.Resolution, " ", "")
-		cleanResolution = strings.ReplaceAll(cleanResolution, "×", "x")
-		cleanResolution = strings.ReplaceAll(cleanResolution, "X", "x")
-		hasResolutionInFilename = strings.Contains(filename, "_"+cleanResolution) || strings.Contains(filename, cleanResolution)
-	}
-
-	// 如果有分辨率信息且文件名中还没有，添加到文件名中（与前端命名方式一致）
-	if !hasResolutionInFilename && (req.FileFormat != "" || req.Width > 0 || req.Height > 0 || req.Resolution != "") {
-		var qualityInfo string
-		if req.FileFormat != "" {
-			qualityInfo = req.FileFormat
-		} else {
-			qualityInfo = "quality"
-		}
-
-		// 优先使用 width 和 height，其次使用 resolution 字符串
-		if req.Width > 0 && req.Height > 0 {
-			qualityInfo += fmt.Sprintf("_%dx%d", req.Width, req.Height)
-		} else if req.Resolution != "" {
-			// 清理分辨率字符串，移除空格和特殊字符
-			cleanResolution := strings.ReplaceAll(req.Resolution, " ", "")
-			cleanResolution = strings.ReplaceAll(cleanResolution, "×", "x")
-			cleanResolution = strings.ReplaceAll(cleanResolution, "X", "x")
-			qualityInfo += "_" + cleanResolution
-		}
-
-		// 在添加分辨率信息前，需要先移除扩展名
-		base := strings.TrimSuffix(filename, filepath.Ext(filename))
-		ext := filepath.Ext(filename)
-		if ext == "" {
-			ext = ".mp4"
-		}
-		filename = base + "_" + qualityInfo + ext
-		utils.Info("📐 [视频下载] 添加分辨率信息到文件名: %s", qualityInfo)
-	} else if hasResolutionInFilename {
-		utils.Info("📐 [视频下载] 文件名中已包含分辨率信息，跳过添加")
-	}
-
-	// 确保文件扩展名
-	filename = utils.EnsureExtension(filename, ".mp4")
-	videoPath := filepath.Join(savePath, filename)
-
-	// 检查文件是否已存在（作为备用检查，主要检查已通过ID完成）
-	if !req.ForceSave {
-		if stat, err := os.Stat(videoPath); err == nil {
-			// 文件已存在，返回成功但不重新下载
-			fileSize := float64(stat.Size()) / (1024 * 1024)
-			relativePath, _ := filepath.Rel(downloadsDir, videoPath)
-			utils.Info("⏭️ [视频下载] 文件已存在，跳过: %s", relativePath)
-
-			// 注意：不再手动保存下载记录，因为队列系统已经处理了记录保存
-			// 移除重复的记录调用以避免数据库中出现重复记录
-
-			responseData := map[string]interface{}{
-				"success":      true,
-				"path":         videoPath,
-				"relativePath": relativePath,
-				"size":         fileSize,
-				"skipped":      true,
-				"message":      "文件已存在，跳过下载",
-			}
-			responseBytes, _ := json.Marshal(responseData)
-			h.sendJSONResponse(Conn, 200, responseBytes)
-			return true
-		}
-	}
-
-	// 判断是否需要解密
-	needDecrypt := req.Key != ""
-	prefixLen := int64(131072) // 128KB 加密前缀长度
-
-	// 断点续传：检查已下载的部分
-	var resumeOffset int64 = 0
-	resumeEnabled := h.getConfig() != nil && h.getConfig().DownloadResumeEnabled
-	tmpPath := videoPath + ".tmp"
-
-	if resumeEnabled {
-		if stat, err := os.Stat(tmpPath); err == nil {
-			existingSize := stat.Size()
-			if needDecrypt {
-				// 加密视频：如果已下载 >= 128KB，可以从断点续传
-				if existingSize >= prefixLen {
-					resumeOffset = existingSize
-					utils.Info("📍 [视频下载] 加密视频断点续传，从 %.2f MB 继续（已包含解密前缀）", float64(resumeOffset)/(1024*1024))
-				} else {
-					// 如果 < 128KB，删除不完整的文件，重新下载
-					utils.Info("📍 [视频下载] 已下载部分 < 128KB，删除不完整文件，重新下载")
-					os.Remove(tmpPath)
-					resumeOffset = 0
-				}
-			} else {
-				// 非加密视频：可以直接续传
-				resumeOffset = existingSize
-				utils.Info("📍 [视频下载] 断点续传，从 %.2f MB 继续", float64(resumeOffset)/(1024*1024))
-			}
-		}
-	}
-
-	// 使用配置的重试次数
-	maxRetries := 3
-	if h.getConfig() != nil && h.getConfig().DownloadRetryCount > 0 {
-		maxRetries = h.getConfig().DownloadRetryCount
-	}
-	if maxRetries < 1 {
-		maxRetries = 3
-	}
-
-	var lastErr error
-	var written int64
-
-	// 重试下载
-	for retry := 0; retry < maxRetries; retry++ {
-		if retry > 0 {
-			// 递增延迟，给服务器和网络恢复时间
-			delay := time.Second * time.Duration(retry*2)
-			utils.Info("🔄 [视频下载] 等待 %v 后重试 (%d/%d): %s", delay, retry, maxRetries-1, req.Title)
-			time.Sleep(delay)
-		}
-
-		// 创建HTTP客户端（每次重试都创建新的客户端和Transport，避免连接污染）
-		transport := &http.Transport{
-			MaxIdleConns:          10,
-			MaxIdleConnsPerHost:   2,
-			IdleConnTimeout:       30 * time.Second,
-			DisableKeepAlives:     false, // 保持连接复用，但每次重试创建新的Transport
-			TLSHandshakeTimeout:   15 * time.Second,
-			ResponseHeaderTimeout: 60 * time.Second,
-			ExpectContinueTimeout: 5 * time.Second,
-			DisableCompression:    true, // 禁用压缩，避免问题
-		}
-		client := &http.Client{
-			Timeout:   30 * time.Minute,
-			Transport: transport,
-		}
-
-		// 创建请求（每次重试都创建新的context）
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
-
-		httpReq, err := http.NewRequestWithContext(ctx, "GET", req.VideoURL, nil)
+	// 异步下载
+	go func() {
+		downloadsDir, err := h.getDownloadsDir()
 		if err != nil {
-			lastErr = fmt.Errorf("创建下载请求失败: %v", err)
-			utils.Warn("⚠️ [视频下载] %v", lastErr)
-			continue
+			utils.LogError("获取下载目录失败: %v", err)
+			return
 		}
 
-		// 断点续传：设置 Range 头
-		if resumeOffset > 0 {
-			httpReq.Header.Set("Range", fmt.Sprintf("bytes=%d-", resumeOffset))
+		// 创建作者目录
+		authorFolder := utils.CleanFolderName(req.Author)
+		if authorFolder == "" {
+			authorFolder = "未知作者"
+		}
+		savePath := filepath.Join(downloadsDir, authorFolder)
+		if err := utils.EnsureDir(savePath); err != nil {
+			utils.LogError("创建作者目录失败: %v", err)
+			return
 		}
 
-		// 设置请求头
-		httpReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-		httpReq.Header.Set("Referer", "https://channels.weixin.qq.com/")
-		httpReq.Header.Set("Accept", "*/*")
-		httpReq.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-		httpReq.Header.Set("Cache-Control", "no-cache")
+		// Generate filename from Title and VideoID
+		filename := utils.GenerateVideoFilename(req.Title, req.VideoID)
 
-		// 执行下载
-		downloadReq := struct {
-			VideoURL  string
-			VideoID   string
-			Title     string
-			Author    string
-			Key       string
-			ForceSave bool
-		}{
-			VideoURL:  req.VideoURL,
-			VideoID:   req.VideoID,
-			Title:     req.Title,
-			Author:    req.Author,
-			Key:       req.Key,
-			ForceSave: req.ForceSave,
-		}
-		var expectedTotalSize int64
-		err = h.downloadVideoWithRetry(ctx, client, httpReq, downloadReq, videoPath, needDecrypt, resumeOffset, &written, &expectedTotalSize)
-
-		// 确保 context 取消，释放资源
-		cancel()
-
-		// 关闭 Transport 的连接池，确保连接完全释放
-		transport.CloseIdleConnections()
-
-		if err == nil {
-			// 下载成功，验证文件大小
-			if expectedTotalSize > 0 {
-				stat, statErr := os.Stat(tmpPath)
-				if statErr == nil {
-					actualSize := stat.Size()
-					if actualSize != expectedTotalSize {
-						utils.Warn("⚠️ [视频下载] 文件大小不匹配: 期望 %d bytes (%.2f MB), 实际 %d bytes (%.2f MB)",
-							expectedTotalSize, float64(expectedTotalSize)/(1024*1024),
-							actualSize, float64(actualSize)/(1024*1024))
-						// 如果差异超过1%，认为下载不完整
-						diffPercent := float64(abs(actualSize-expectedTotalSize)) / float64(expectedTotalSize) * 100
-						if diffPercent > 1.0 {
-							os.Remove(tmpPath)
-							err = fmt.Errorf("文件大小不匹配: 期望 %.2f MB, 实际 %.2f MB (差异 %.2f%%)",
-								float64(expectedTotalSize)/(1024*1024),
-								float64(actualSize)/(1024*1024),
-								diffPercent)
-							lastErr = err
-							continue
-						}
-					} else {
-						utils.Info("✓ [视频下载] 文件大小验证通过: %.2f MB", float64(actualSize)/(1024*1024))
-					}
-				}
-			}
-			// 下载成功
-			break
+		// 确保文件名安全
+		filename = utils.CleanFilename(filename)
+		if !strings.HasSuffix(filename, ".mp4") {
+			filename += ".mp4"
 		}
 
-		lastErr = err
-		utils.Warn("⚠️ [视频下载] 下载失败 (尝试 %d/%d): %v", retry+1, maxRetries, err)
+		// 创建下载请求
+		resp, err := http.Get(req.VideoURL)
+		if err != nil {
+			utils.LogError("下载请求失败: %v", err)
+			return
+		}
+		defer resp.Body.Close()
 
-		// 清理临时文件（断点续传模式下保留，除非是最后一次重试）
-		if retry < maxRetries-1 {
-			// 如果服务器不支持 Range，删除临时文件
-			if resumeOffset > 0 && err != nil && strings.Contains(err.Error(), "HTTP 200") {
-				utils.Warn("⚠️ [视频下载] 服务器不支持断点续传，删除临时文件")
-				if removeErr := os.Remove(tmpPath); removeErr != nil && !os.IsNotExist(removeErr) {
-					utils.Warn("⚠️ [视频下载] 清理临时文件失败: %v", removeErr)
-				}
-				resumeOffset = 0 // 下次重试从头开始
-			} else if !resumeEnabled || needDecrypt {
-				// 非断点续传模式或加密视频（如果文件不完整），删除临时文件
-				if removeErr := os.Remove(tmpPath); removeErr != nil && !os.IsNotExist(removeErr) {
-					utils.Warn("⚠️ [视频下载] 清理临时文件失败: %v", removeErr)
-				}
-			}
+		// 创建文件
+		finalPath := filepath.Join(savePath, filename)
+		out, err := os.Create(finalPath)
+		if err != nil {
+			utils.LogError("创建文件失败: %v", err)
+			return
+		}
+		defer out.Close()
+
+		// 写入文件
+		_, err = io.Copy(out, resp.Body)
+		if err != nil {
+			utils.LogError("写入文件失败: %v", err)
+			return
 		}
 
-		// 给系统一些时间释放资源
-		if retry < maxRetries-1 {
-			time.Sleep(500 * time.Millisecond)
-		}
-	}
+		utils.Info("✅ 下载完成: %s", filename)
+	}()
 
-	// 检查是否下载成功
-	if lastErr != nil {
-		utils.Error("❌ [视频下载] 下载失败（已重试 %d 次）: %v", maxRetries, lastErr)
-		h.sendErrorResponse(Conn, fmt.Errorf("下载失败（已重试 %d 次）: %v", maxRetries, lastErr))
-		return true
-	}
-
-	// 验证文件并重命名
-	stat, err := os.Stat(tmpPath)
-	if err != nil {
-		utils.Error("❌ [视频下载] 临时文件不存在: %v", err)
-		h.sendErrorResponse(Conn, fmt.Errorf("临时文件不存在: %v", err))
-		return true
-	}
-
-	if stat.Size() == 0 {
-		os.Remove(tmpPath)
-		utils.Error("❌ [视频下载] 下载的文件为空")
-		h.sendErrorResponse(Conn, fmt.Errorf("下载的文件为空"))
-		return true
-	}
-
-	// 重命名为最终文件
-	if err := os.Rename(tmpPath, videoPath); err != nil {
-		os.Remove(tmpPath)
-		utils.Error("❌ [视频下载] 重命名文件失败: %v", err)
-		h.sendErrorResponse(Conn, fmt.Errorf("重命名文件失败: %v", err))
-		return true
-	}
-
-	fileSize := float64(stat.Size()) / (1024 * 1024)
-	relativePath, _ := filepath.Rel(downloadsDir, videoPath)
-
-	statusMsg := ""
-	if needDecrypt {
-		statusMsg = " [已解密]"
-	}
-	utils.Info("✓ [视频下载] 视频已保存: %s (%.2f MB)%s", relativePath, fileSize, statusMsg)
-
-	// 注意：不再手动保存下载记录，因为队列系统已经处理了记录保存
-	// 移除重复的记录调用以避免数据库中出现重复记录
-
-	responseData := map[string]interface{}{
-		"success":      true,
-		"path":         videoPath,
-		"relativePath": relativePath,
-		"size":         fileSize,
-		"decrypted":    needDecrypt,
-	}
-	responseBytes, err := json.Marshal(responseData)
-	if err != nil {
-		utils.HandleError(err, "生成响应JSON")
-		h.sendErrorResponse(Conn, err)
-		return true
-	}
-	h.sendJSONResponse(Conn, 200, responseBytes)
+	h.sendJSONResponse(Conn, 200, []byte(`{"success":true}`))
 	return true
 }
 
@@ -1480,15 +1250,23 @@ func (h *UploadHandler) downloadVideoWithRetry(ctx context.Context, client *http
 }
 
 // HandleUploadStatus 查询已上传的分片列表
-func (h *UploadHandler) HandleUploadStatus(Conn *SunnyNet.HttpConn) bool {
-	path := Conn.Request.URL.Path
+func (h *UploadHandler) HandleUploadStatus(Conn SunnyNet.ConnHTTP) bool {
+	u, err := url.Parse(Conn.URL())
+	if err != nil {
+		return false
+	}
+	path := u.Path
 	if path != "/__wx_channels_api/upload_status" {
 		return false
 	}
 
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		if Conn.Request.Header.Get("X-Local-Auth") != h.getConfig().SecretToken {
-			headers := http.Header{}
+		auth := ""
+		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
+			auth = v[0]
+		}
+		if auth != h.getConfig().SecretToken {
+			headers := make(nf_http.Header)
 			headers.Set("Content-Type", "application/json")
 			headers.Set("X-Content-Type-Options", "nosniff")
 			Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
@@ -1496,7 +1274,10 @@ func (h *UploadHandler) HandleUploadStatus(Conn *SunnyNet.HttpConn) bool {
 		}
 	}
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := Conn.Request.Header.Get("Origin")
+		origin := ""
+		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
+			origin = v[0]
+		}
 		if origin != "" {
 			allowed := false
 			for _, o := range h.getConfig().AllowedOrigins {
@@ -1506,7 +1287,7 @@ func (h *UploadHandler) HandleUploadStatus(Conn *SunnyNet.HttpConn) bool {
 				}
 			}
 			if !allowed {
-				headers := http.Header{}
+				headers := make(nf_http.Header)
 				headers.Set("Content-Type", "application/json")
 				headers.Set("X-Content-Type-Options", "nosniff")
 				Conn.StopRequest(403, `{"success":false,"error":"forbidden_origin"}`, headers)
@@ -1515,12 +1296,7 @@ func (h *UploadHandler) HandleUploadStatus(Conn *SunnyNet.HttpConn) bool {
 		}
 	}
 
-	body, err := io.ReadAll(Conn.Request.Body)
-	if err != nil {
-		h.sendErrorResponse(Conn, err)
-		return true
-	}
-	_ = Conn.Request.Body.Close()
+	body := Conn.GetRequestBody()
 
 	var req struct {
 		UploadId string `json:"uploadId"`
@@ -1566,15 +1342,18 @@ func (h *UploadHandler) HandleUploadStatus(Conn *SunnyNet.HttpConn) bool {
 }
 
 // sendSuccessResponse 发送成功响应
-func (h *UploadHandler) sendSuccessResponse(Conn *SunnyNet.HttpConn) {
-	headers := http.Header{}
+func (h *UploadHandler) sendSuccessResponse(Conn SunnyNet.ConnHTTP) {
+	headers := make(nf_http.Header)
 	headers.Set("Content-Type", "application/json")
 	headers.Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	headers.Set("Pragma", "no-cache")
 	headers.Set("Expires", "0")
 	headers.Set("X-Content-Type-Options", "nosniff")
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := Conn.Request.Header.Get("Origin")
+		origin := ""
+		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
+			origin = v[0]
+		}
 		if origin != "" {
 			for _, o := range h.getConfig().AllowedOrigins {
 				if o == origin {
@@ -1591,15 +1370,15 @@ func (h *UploadHandler) sendSuccessResponse(Conn *SunnyNet.HttpConn) {
 }
 
 // sendJSONResponse 发送JSON响应
-func (h *UploadHandler) sendJSONResponse(Conn *SunnyNet.HttpConn, statusCode int, body []byte) {
-	headers := http.Header{}
+func (h *UploadHandler) sendJSONResponse(Conn SunnyNet.ConnHTTP, statusCode int, data []byte) {
+	headers := make(nf_http.Header)
 	headers.Set("Content-Type", "application/json")
-	headers.Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	headers.Set("Pragma", "no-cache")
-	headers.Set("Expires", "0")
 	headers.Set("X-Content-Type-Options", "nosniff")
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := Conn.Request.Header.Get("Origin")
+		origin := ""
+		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
+			origin = v[0]
+		}
 		if origin != "" {
 			for _, o := range h.getConfig().AllowedOrigins {
 				if o == origin {
@@ -1612,16 +1391,19 @@ func (h *UploadHandler) sendJSONResponse(Conn *SunnyNet.HttpConn, statusCode int
 			}
 		}
 	}
-	Conn.StopRequest(statusCode, string(body), headers)
+	Conn.StopRequest(statusCode, string(data), headers)
 }
 
 // sendErrorResponse 发送错误响应
-func (h *UploadHandler) sendErrorResponse(Conn *SunnyNet.HttpConn, err error) {
-	headers := http.Header{}
+func (h *UploadHandler) sendErrorResponse(Conn SunnyNet.ConnHTTP, err error) {
+	headers := make(nf_http.Header)
 	headers.Set("Content-Type", "application/json")
 	headers.Set("X-Content-Type-Options", "nosniff")
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := Conn.Request.Header.Get("Origin")
+		origin := ""
+		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
+			origin = v[0]
+		}
 		if origin != "" {
 			for _, o := range h.getConfig().AllowedOrigins {
 				if o == origin {
@@ -1643,4 +1425,3 @@ func (h *UploadHandler) sendErrorResponse(Conn *SunnyNet.HttpConn, err error) {
 // 而队列系统的 CompleteDownload() 方法使用格式化的文件名（？ 替换为 _），
 // 导致出现重复记录且文件名格式不一致。
 // 现在统一使用队列系统的 CompleteDownload() 方法来创建下载记录。
-

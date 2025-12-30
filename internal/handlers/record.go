@@ -3,19 +3,23 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
+
+	// "io"
+
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/fatih/color"
 	"wx_channel/internal/config"
 	"wx_channel/internal/models"
 	"wx_channel/internal/storage"
 	"wx_channel/internal/utils"
+
+	"github.com/fatih/color"
 	"github.com/qtgolang/SunnyNet/SunnyNet"
+	nf_http "github.com/qtgolang/SunnyNet/src/http"
 )
 
 // RecordHandler 下载记录处理器
@@ -47,33 +51,27 @@ func (h *RecordHandler) GetCurrentURL() string {
 }
 
 // HandleRecordDownload 处理记录下载信息请求
-func (h *RecordHandler) HandleRecordDownload(Conn *SunnyNet.HttpConn) bool {
-	path := Conn.Request.URL.Path
+func (h *RecordHandler) HandleRecordDownload(Conn SunnyNet.ConnHTTP) bool {
+	u, err := url.Parse(Conn.URL())
+	if err != nil {
+		return false
+	}
+	path := u.Path
 	if path != "/__wx_channels_api/record_download" {
 		return false
 	}
 
-    if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-        if Conn.Request.Header.Get("X-Local-Auth") != h.getConfig().SecretToken {
-            headers := http.Header{}
-            headers.Set("Content-Type", "application/json")
-            headers.Set("X-Content-Type-Options", "nosniff")
-            Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
-            return true
-        }
-    }
+	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
+	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
+		auth := reqHeaders.Get("X-Local-Auth")
+		if auth != h.getConfig().SecretToken {
+			h.sendErrorResponse(Conn, fmt.Errorf("unauthorized"))
+			return true
+		}
+	}
 
 	var data map[string]interface{}
-	body, err := io.ReadAll(Conn.Request.Body)
-	if err != nil {
-		utils.HandleError(err, "读取record_download请求体")
-		h.sendErrorResponse(Conn, err)
-		return true
-	}
-
-	if err := Conn.Request.Body.Close(); err != nil {
-		utils.HandleError(err, "关闭请求体")
-	}
+	body := Conn.GetRequestBody()
 
 	// 检查body是否为空
 	if len(body) == 0 {
@@ -96,8 +94,8 @@ func (h *RecordHandler) HandleRecordDownload(Conn *SunnyNet.HttpConn) bool {
 		URL:           fmt.Sprintf("%v", data["url"]),
 		PageURL:       h.currentURL,
 		DownloadAt:    time.Now(),
-		PageSource:    "",  // 将从请求数据中获取
-		SearchKeyword: "",  // 将从请求数据中获取
+		PageSource:    "", // 将从请求数据中获取
+		SearchKeyword: "", // 将从请求数据中获取
 	}
 
 	// 从正确的位置获取作者昵称
@@ -199,13 +197,13 @@ func (h *RecordHandler) HandleRecordDownload(Conn *SunnyNet.HttpConn) bool {
 			h.sendEmptyResponse(Conn)
 			return true
 		}
-		
+
 		if err := h.csvManager.AddRecord(record); err != nil {
 			utils.Error("[下载记录] 保存失败: ID=%s, 标题=%s, 作者=%s, 错误=%v", record.ID, record.Title, record.Author, err)
 			utils.HandleError(err, "保存下载记录")
 		} else {
 			utils.Info("[下载记录] 已保存: ID=%s, 标题=%s, 作者=%s, 大小=%s, 时长=%s", record.ID, record.Title, record.Author, record.FileSize, record.Duration)
-			
+
 			// 记录到日志文件，包含页面来源和搜索关键词
 			logMsg := fmt.Sprintf("[下载记录] ID=%s | 标题=%s | 作者=%s | 大小=%s | 时长=%s | 页面=%s",
 				record.ID, record.Title, record.Author, record.FileSize, record.Duration, record.PageSource)
@@ -213,7 +211,7 @@ func (h *RecordHandler) HandleRecordDownload(Conn *SunnyNet.HttpConn) bool {
 				logMsg += fmt.Sprintf(" | 搜索词=%s", record.SearchKeyword)
 			}
 			utils.LogInfo(logMsg)
-			
+
 			utils.PrintSeparator()
 			color.Green("✅ 下载记录已保存")
 			utils.PrintSeparator()
@@ -225,36 +223,30 @@ func (h *RecordHandler) HandleRecordDownload(Conn *SunnyNet.HttpConn) bool {
 }
 
 // HandleExportVideoList 处理批量导出视频链接请求
-func (h *RecordHandler) HandleExportVideoList(Conn *SunnyNet.HttpConn) bool {
-	path := Conn.Request.URL.Path
+func (h *RecordHandler) HandleExportVideoList(Conn SunnyNet.ConnHTTP) bool {
+	u, err := url.Parse(Conn.URL())
+	if err != nil {
+		return false
+	}
+	path := u.Path
 	if path != "/__wx_channels_api/export_video_list" {
 		return false
 	}
 
-    if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-        if Conn.Request.Header.Get("X-Local-Auth") != h.getConfig().SecretToken {
-            headers := http.Header{}
-            headers.Set("Content-Type", "application/json")
-            headers.Set("X-Content-Type-Options", "nosniff")
-            Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
-            return true
-        }
-    }
+	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
+	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
+		auth := reqHeaders.Get("X-Local-Auth")
+		if auth != h.getConfig().SecretToken {
+			h.sendErrorResponse(Conn, fmt.Errorf("unauthorized"))
+			return true
+		}
+	}
 
 	var requestData struct {
 		Videos []map[string]interface{} `json:"videos"`
 	}
 
-	body, err := io.ReadAll(Conn.Request.Body)
-	if err != nil {
-		utils.HandleError(err, "读取export_video_list请求体")
-		h.sendErrorResponse(Conn, err)
-		return true
-	}
-
-	if err := Conn.Request.Body.Close(); err != nil {
-		utils.HandleError(err, "关闭请求体")
-	}
+	body := Conn.GetRequestBody()
 
 	if err := json.Unmarshal(body, &requestData); err != nil {
 		utils.HandleError(err, "解析批量导出请求")
@@ -293,7 +285,7 @@ func (h *RecordHandler) HandleExportVideoList(Conn *SunnyNet.HttpConn) bool {
 				utils.PrintLabelValue("📁", "导出文件", exportFile)
 				utils.PrintLabelValue("📊", "视频数量", len(requestData.Videos))
 				utils.PrintSeparator()
-				
+
 				// 记录导出操作
 				utils.LogInfo("[导出动态] 格式=TXT | 视频数=%d | 路径=%s", len(requestData.Videos), exportFile)
 			} else {
@@ -307,167 +299,168 @@ func (h *RecordHandler) HandleExportVideoList(Conn *SunnyNet.HttpConn) bool {
 }
 
 // HandleExportVideoListJSON 处理批量导出视频链接（JSON）
-func (h *RecordHandler) HandleExportVideoListJSON(Conn *SunnyNet.HttpConn) bool {
-    path := Conn.Request.URL.Path
-    if path != "/__wx_channels_api/export_video_list_json" {
-        return false
-    }
+func (h *RecordHandler) HandleExportVideoListJSON(Conn SunnyNet.ConnHTTP) bool {
+	u, err := url.Parse(Conn.URL())
+	if err != nil {
+		return false
+	}
+	path := u.Path
+	if path != "/__wx_channels_api/export_video_list_json" {
+		return false
+	}
 
-    if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-        if Conn.Request.Header.Get("X-Local-Auth") != h.getConfig().SecretToken {
-            headers := http.Header{}
-            headers.Set("Content-Type", "application/json")
-            headers.Set("X-Content-Type-Options", "nosniff")
-            Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
-            return true
-        }
-    }
+	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
+	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
+		auth := reqHeaders.Get("X-Local-Auth")
+		if auth != h.getConfig().SecretToken {
+			h.sendErrorResponse(Conn, fmt.Errorf("unauthorized"))
+			return true
+		}
+	}
 
-    var requestData struct {
-        Videos []map[string]interface{} `json:"videos"`
-    }
+	var requestData struct {
+		Videos []map[string]interface{} `json:"videos"`
+	}
 
-    body, err := io.ReadAll(Conn.Request.Body)
-    if err != nil {
-        utils.HandleError(err, "读取export_video_list_json请求体")
-        h.sendErrorResponse(Conn, err)
-        return true
-    }
-    if err := Conn.Request.Body.Close(); err != nil {
-        utils.HandleError(err, "关闭请求体")
-    }
-    if err := json.Unmarshal(body, &requestData); err != nil {
-        utils.HandleError(err, "解析批量导出JSON请求")
-        h.sendErrorResponse(Conn, err)
-        return true
-    }
+	body := Conn.GetRequestBody()
 
-    payload := map[string]interface{}{
-        "generated_at": time.Now().Format("2006-01-02 15:04:05"),
-        "count":        len(requestData.Videos),
-        "videos":       requestData.Videos,
-    }
+	if err := json.Unmarshal(body, &requestData); err != nil {
+		utils.HandleError(err, "解析批量导出JSON请求")
+		h.sendErrorResponse(Conn, err)
+		return true
+	}
 
-    b, err := json.MarshalIndent(payload, "", "  ")
-    if err != nil {
-        h.sendErrorResponse(Conn, err)
-        return true
-    }
+	payload := map[string]interface{}{
+		"generated_at": time.Now().Format("2006-01-02 15:04:05"),
+		"count":        len(requestData.Videos),
+		"videos":       requestData.Videos,
+	}
 
-    baseDir, err := utils.GetBaseDir()
-    if err == nil {
-        exportDir := filepath.Join(baseDir, h.getConfig().DownloadsDir)
-        if err := utils.EnsureDir(exportDir); err == nil {
-            exportFile := filepath.Join(exportDir, fmt.Sprintf("profile_videos_export_%s.json",
-                time.Now().Format("20060102_150405")))
-            if err := os.WriteFile(exportFile, b, 0644); err == nil {
-                utils.PrintSeparator()
-                color.Green("📄 视频列表已导出(JSON)")
-                utils.PrintSeparator()
-                utils.PrintLabelValue("📁", "导出文件", exportFile)
-                utils.PrintLabelValue("📊", "视频数量", len(requestData.Videos))
-                utils.PrintSeparator()
-                
-                // 记录导出操作
-                utils.LogInfo("[导出动态] 格式=JSON | 视频数=%d | 路径=%s", len(requestData.Videos), exportFile)
-            } else {
-                utils.HandleError(err, "保存JSON导出文件")
-            }
-        }
-    }
+	b, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		h.sendErrorResponse(Conn, err)
+		return true
+	}
 
-    h.sendEmptyResponse(Conn)
-    return true
+	baseDir, err := utils.GetBaseDir()
+	if err == nil {
+		exportDir := filepath.Join(baseDir, h.getConfig().DownloadsDir)
+		if err := utils.EnsureDir(exportDir); err == nil {
+			exportFile := filepath.Join(exportDir, fmt.Sprintf("profile_videos_export_%s.json",
+				time.Now().Format("20060102_150405")))
+			if err := os.WriteFile(exportFile, b, 0644); err == nil {
+				utils.PrintSeparator()
+				color.Green("📄 视频列表已导出(JSON)")
+				utils.PrintSeparator()
+				utils.PrintLabelValue("📁", "导出文件", exportFile)
+				utils.PrintLabelValue("📊", "视频数量", len(requestData.Videos))
+				utils.PrintSeparator()
+
+				// 记录导出操作
+				utils.LogInfo("[导出动态] 格式=JSON | 视频数=%d | 路径=%s", len(requestData.Videos), exportFile)
+			} else {
+				utils.HandleError(err, "保存JSON导出文件")
+			}
+		}
+	}
+
+	h.sendEmptyResponse(Conn)
+	return true
 }
 
 // HandleExportVideoListMarkdown 处理批量导出视频链接（Markdown）
-func (h *RecordHandler) HandleExportVideoListMarkdown(Conn *SunnyNet.HttpConn) bool {
-    path := Conn.Request.URL.Path
-    if path != "/__wx_channels_api/export_video_list_md" {
-        return false
-    }
+func (h *RecordHandler) HandleExportVideoListMarkdown(Conn SunnyNet.ConnHTTP) bool {
+	u, err := url.Parse(Conn.URL())
+	if err != nil {
+		return false
+	}
+	path := u.Path
+	if path != "/__wx_channels_api/export_video_list_md" {
+		return false
+	}
 
-    if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-        if Conn.Request.Header.Get("X-Local-Auth") != h.getConfig().SecretToken {
-            headers := http.Header{}
-            headers.Set("Content-Type", "application/json")
-            headers.Set("X-Content-Type-Options", "nosniff")
-            Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
-            return true
-        }
-    }
+	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
+	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
+		auth := reqHeaders.Get("X-Local-Auth")
+		if auth != h.getConfig().SecretToken {
+			h.sendErrorResponse(Conn, fmt.Errorf("unauthorized"))
+			return true
+		}
+	}
 
-    var requestData struct {
-        Videos []map[string]interface{} `json:"videos"`
-    }
+	var requestData struct {
+		Videos []map[string]interface{} `json:"videos"`
+	}
 
-    body, err := io.ReadAll(Conn.Request.Body)
-    if err != nil {
-        utils.HandleError(err, "读取export_video_list_md请求体")
-        h.sendErrorResponse(Conn, err)
-        return true
-    }
-    if err := Conn.Request.Body.Close(); err != nil {
-        utils.HandleError(err, "关闭请求体")
-    }
-    if err := json.Unmarshal(body, &requestData); err != nil {
-        utils.HandleError(err, "解析批量导出MD请求")
-        h.sendErrorResponse(Conn, err)
-        return true
-    }
+	body := Conn.GetRequestBody()
 
-    var sb strings.Builder
-    sb.WriteString("# 主页页面视频列表导出\n\n")
-    sb.WriteString(fmt.Sprintf("生成时间: %s\\n\n", time.Now().Format("2006-01-02 15:04:05")))
-    sb.WriteString(fmt.Sprintf("总计: %d 个视频\\n\n", len(requestData.Videos)))
-    for i, v := range requestData.Videos {
-        title := fmt.Sprintf("%v", v["title"]) 
-        videoId := fmt.Sprintf("%v", v["id"]) 
-        url := fmt.Sprintf("%v", v["url"]) 
-        sb.WriteString(fmt.Sprintf("%d. [%s](%s)  ", i+1, title, url))
-        sb.WriteString(fmt.Sprintf("ID: `%s`\\n\n", videoId))
-    }
+	if err := json.Unmarshal(body, &requestData); err != nil {
+		utils.HandleError(err, "解析批量导出MD请求")
+		h.sendErrorResponse(Conn, err)
+		return true
+	}
 
-    baseDir, err := utils.GetBaseDir()
-    if err == nil {
-        exportDir := filepath.Join(baseDir, h.getConfig().DownloadsDir)
-        if err := utils.EnsureDir(exportDir); err == nil {
-            exportFile := filepath.Join(exportDir, fmt.Sprintf("profile_videos_export_%s.md",
-                time.Now().Format("20060102_150405")))
-            if err := os.WriteFile(exportFile, []byte(sb.String()), 0644); err == nil {
-                utils.PrintSeparator()
-                color.Green("📄 视频列表已导出(Markdown)")
-                utils.PrintLabelValue("📁", "导出文件", exportFile)
-                utils.PrintLabelValue("📊", "视频数量", len(requestData.Videos))
-                utils.PrintSeparator()
-                
-                // 记录导出操作
-                utils.LogInfo("[导出动态] 格式=Markdown | 视频数=%d | 路径=%s", len(requestData.Videos), exportFile)
-            } else {
-                utils.HandleError(err, "保存Markdown导出文件")
-            }
-        }
-    }
+	var sb strings.Builder
+	sb.WriteString("# 主页页面视频列表导出\n\n")
+	sb.WriteString(fmt.Sprintf("生成时间: %s\\n\n", time.Now().Format("2006-01-02 15:04:05")))
+	sb.WriteString(fmt.Sprintf("总计: %d 个视频\\n\n", len(requestData.Videos)))
+	for i, v := range requestData.Videos {
+		title := fmt.Sprintf("%v", v["title"])
+		videoId := fmt.Sprintf("%v", v["id"])
+		url := fmt.Sprintf("%v", v["url"])
+		sb.WriteString(fmt.Sprintf("%d. [%s](%s)  ", i+1, title, url))
+		sb.WriteString(fmt.Sprintf("ID: `%s`\\n\n", videoId))
+	}
 
-    h.sendEmptyResponse(Conn)
-    return true
+	baseDir, err := utils.GetBaseDir()
+	if err == nil {
+		exportDir := filepath.Join(baseDir, h.getConfig().DownloadsDir)
+		if err := utils.EnsureDir(exportDir); err == nil {
+			exportFile := filepath.Join(exportDir, fmt.Sprintf("profile_videos_export_%s.md",
+				time.Now().Format("20060102_150405")))
+			if err := os.WriteFile(exportFile, []byte(sb.String()), 0644); err == nil {
+				utils.PrintSeparator()
+				color.Green("📄 视频列表已导出(Markdown)")
+				utils.PrintLabelValue("📁", "导出文件", exportFile)
+				utils.PrintLabelValue("📊", "视频数量", len(requestData.Videos))
+				utils.PrintSeparator()
+
+				// 记录导出操作
+				utils.LogInfo("[导出动态] 格式=Markdown | 视频数=%d | 路径=%s", len(requestData.Videos), exportFile)
+			} else {
+				utils.HandleError(err, "保存Markdown导出文件")
+			}
+		}
+	}
+
+	h.sendEmptyResponse(Conn)
+	return true
 }
+
 // HandleBatchDownloadStatus 处理批量下载状态查询请求
-func (h *RecordHandler) HandleBatchDownloadStatus(Conn *SunnyNet.HttpConn) bool {
-	path := Conn.Request.URL.Path
+func (h *RecordHandler) HandleBatchDownloadStatus(Conn SunnyNet.ConnHTTP) bool {
+	u, err := url.Parse(Conn.URL())
+	if err != nil {
+		return false
+	}
+	path := u.Path
 	if path != "/__wx_channels_api/batch_download_status" {
 		return false
 	}
 
-    if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-        if Conn.Request.Header.Get("X-Local-Auth") != h.getConfig().SecretToken {
-            headers := http.Header{}
-            headers.Set("Content-Type", "application/json")
-            headers.Set("X-Content-Type-Options", "nosniff")
-            Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
-            return true
-        }
-    }
+	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
+		auth := ""
+		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
+			auth = v[0]
+		}
+		if auth != h.getConfig().SecretToken {
+			headers := make(nf_http.Header)
+			headers.Set("Content-Type", "application/json")
+			headers.Set("X-Content-Type-Options", "nosniff")
+			Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
+			return true
+		}
+	}
 
 	var statusData struct {
 		Current int    `json:"current"`
@@ -475,16 +468,7 @@ func (h *RecordHandler) HandleBatchDownloadStatus(Conn *SunnyNet.HttpConn) bool 
 		Status  string `json:"status"`
 	}
 
-	body, err := io.ReadAll(Conn.Request.Body)
-	if err != nil {
-		utils.HandleError(err, "读取batch_download_status请求体")
-		h.sendErrorResponse(Conn, err)
-		return true
-	}
-
-	if err := Conn.Request.Body.Close(); err != nil {
-		utils.HandleError(err, "关闭请求体")
-	}
+	body := Conn.GetRequestBody()
 
 	if err := json.Unmarshal(body, &statusData); err != nil {
 		utils.HandleError(err, "解析批量下载状态")
@@ -523,48 +507,51 @@ func (h *RecordHandler) inferPageSource(url string) string {
 }
 
 // sendEmptyResponse 发送空JSON响应
-func (h *RecordHandler) sendEmptyResponse(Conn *SunnyNet.HttpConn) {
-	headers := http.Header{}
+func (h *RecordHandler) sendEmptyResponse(Conn SunnyNet.ConnHTTP) {
+	headers := make(nf_http.Header)
 	headers.Set("Content-Type", "application/json")
-    headers.Set("X-Content-Type-Options", "nosniff")
-    if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-        origin := Conn.Request.Header.Get("Origin")
-        if origin != "" {
-            for _, o := range h.getConfig().AllowedOrigins {
-                if o == origin {
-                    headers.Set("Access-Control-Allow-Origin", origin)
-                    headers.Set("Vary", "Origin")
-                    headers.Set("Access-Control-Allow-Headers", "Content-Type, X-Local-Auth")
-                    headers.Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-                    break
-                }
-            }
-        }
-    }
+	headers.Set("X-Content-Type-Options", "nosniff")
+	// CORS
+	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
+	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
+		origin := reqHeaders.Get("Origin")
+		if origin != "" {
+			for _, o := range h.getConfig().AllowedOrigins {
+				if o == origin {
+					headers.Set("Access-Control-Allow-Origin", origin)
+					headers.Set("Vary", "Origin")
+					headers.Set("Access-Control-Allow-Headers", "Content-Type, X-Local-Auth")
+					headers.Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+					break
+				}
+			}
+		}
+	}
 	headers.Set("__debug", "fake_resp")
 	Conn.StopRequest(200, "{}", headers)
 }
 
 // sendErrorResponse 发送错误响应
-func (h *RecordHandler) sendErrorResponse(Conn *SunnyNet.HttpConn, err error) {
-	headers := http.Header{}
+func (h *RecordHandler) sendErrorResponse(Conn SunnyNet.ConnHTTP, err error) {
+	headers := make(nf_http.Header)
 	headers.Set("Content-Type", "application/json")
-    headers.Set("X-Content-Type-Options", "nosniff")
-    if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-        origin := Conn.Request.Header.Get("Origin")
-        if origin != "" {
-            for _, o := range h.getConfig().AllowedOrigins {
-                if o == origin {
-                    headers.Set("Access-Control-Allow-Origin", origin)
-                    headers.Set("Vary", "Origin")
-                    headers.Set("Access-Control-Allow-Headers", "Content-Type, X-Local-Auth")
-                    headers.Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-                    break
-                }
-            }
-        }
-    }
+	headers.Set("X-Content-Type-Options", "nosniff")
+	// CORS
+	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
+	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
+		origin := reqHeaders.Get("Origin")
+		if origin != "" {
+			for _, o := range h.getConfig().AllowedOrigins {
+				if o == origin {
+					headers.Set("Access-Control-Allow-Origin", origin)
+					headers.Set("Vary", "Origin")
+					headers.Set("Access-Control-Allow-Headers", "Content-Type, X-Local-Auth")
+					headers.Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+					break
+				}
+			}
+		}
+	}
 	errorMsg := fmt.Sprintf(`{"success":false,"error":"%s"}`, err.Error())
 	Conn.StopRequest(500, errorMsg, headers)
 }
-

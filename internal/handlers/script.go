@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -42,8 +40,8 @@ func (h *ScriptHandler) getConfig() *config.Config {
 }
 
 // HandleHTMLResponse 处理HTML响应，注入JavaScript代码
-func (h *ScriptHandler) HandleHTMLResponse(Conn *SunnyNet.HttpConn, host, path string, body []byte) bool {
-	contentType := strings.ToLower(Conn.Response.Header.Get("content-type"))
+func (h *ScriptHandler) HandleHTMLResponse(Conn SunnyNet.ConnHTTP, host, path string, body []byte) bool {
+	contentType := strings.ToLower(Conn.GetResponseHeader().Get("content-type"))
 	if contentType != "text/html; charset=utf-8" {
 		return false
 	}
@@ -55,7 +53,7 @@ func (h *ScriptHandler) HandleHTMLResponse(Conn *SunnyNet.HttpConn, host, path s
 	html = scriptReg1.ReplaceAllString(html, `src="$1.js`+h.version+`"`)
 	scriptReg2 := regexp.MustCompile(`href="([^"]{1,})\.js"`)
 	html = scriptReg2.ReplaceAllString(html, `href="$1.js`+h.version+`"`)
-	Conn.Response.Header.Set("__debug", "append_script")
+	Conn.GetResponseHeader().Set("__debug", "append_script")
 
 	if host == "channels.weixin.qq.com" && (path == "/web/pages/feed" || path == "/web/pages/home" || path == "/web/pages/profile" || path == "/web/pages/s") {
 		// 根据页面路径注入不同的脚本
@@ -64,17 +62,17 @@ func (h *ScriptHandler) HandleHTMLResponse(Conn *SunnyNet.HttpConn, host, path s
 		utils.Info("页面已成功加载！")
 		utils.Info("已添加视频缓存监控和提醒功能")
 		utils.LogInfo("[页面加载] 视频号页面已加载 | Host=%s | Path=%s", host, path)
-		Conn.Response.Body = io.NopCloser(bytes.NewBuffer([]byte(html)))
+		Conn.SetResponseBody([]byte(html))
 		return true
 	}
 
-	Conn.Response.Body = io.NopCloser(bytes.NewBuffer([]byte(html)))
+	Conn.SetResponseBody([]byte(html))
 	return true
 }
 
 // HandleJavaScriptResponse 处理JavaScript响应，修改JavaScript代码
-func (h *ScriptHandler) HandleJavaScriptResponse(Conn *SunnyNet.HttpConn, host, path string, body []byte) bool {
-	contentType := strings.ToLower(Conn.Response.Header.Get("content-type"))
+func (h *ScriptHandler) HandleJavaScriptResponse(Conn SunnyNet.ConnHTTP, host, path string, body []byte) bool {
+	contentType := strings.ToLower(Conn.GetResponseHeader().Get("content-type"))
 	if contentType != "application/javascript" {
 		return false
 	}
@@ -96,27 +94,27 @@ func (h *ScriptHandler) HandleJavaScriptResponse(Conn *SunnyNet.HttpConn, host, 
 	content = depReg.ReplaceAllString(content, `"js/$1.js`+h.version+`"`)
 	content = lazyImportReg.ReplaceAllString(content, `import("$1.js`+h.version+`")`)
 	content = importReg.ReplaceAllString(content, `import"$1.js`+h.version+`"`)
-	Conn.Response.Header.Set("__debug", "replace_script")
+	Conn.GetResponseHeader().Set("__debug", "replace_script")
 
 	// 处理不同的JS文件
 	content, handled := h.handleIndexPublish(path, content)
 	if handled {
-		Conn.Response.Body = io.NopCloser(bytes.NewBuffer([]byte(content)))
+		Conn.SetResponseBody([]byte(content))
 		return true
 	}
 	content, handled = h.handleVirtualSvgIcons(path, content)
 	if handled {
-		Conn.Response.Body = io.NopCloser(bytes.NewBuffer([]byte(content)))
+		Conn.SetResponseBody([]byte(content))
 		return true
 	}
 	content, handled = h.handleFeedDetail(path, content)
 	if handled {
-		Conn.Response.Body = io.NopCloser(bytes.NewBuffer([]byte(content)))
+		Conn.SetResponseBody([]byte(content))
 		return true
 	}
 	content, handled = h.handleWorkerRelease(path, content)
 	if handled {
-		Conn.Response.Body = io.NopCloser(bytes.NewBuffer([]byte(content)))
+		Conn.SetResponseBody([]byte(content))
 		return true
 	}
 	content, handled = h.handleVuexStores(Conn, path, content)
@@ -136,7 +134,7 @@ func (h *ScriptHandler) HandleJavaScriptResponse(Conn *SunnyNet.HttpConn, host, 
 		return true
 	}
 
-	Conn.Response.Body = io.NopCloser(bytes.NewBuffer([]byte(content)))
+	Conn.SetResponseBody([]byte(content))
 	return true
 }
 
@@ -230,10 +228,10 @@ func (h *ScriptHandler) getDownloadTrackerScript() string {
 			console.log("已经记录过此下载，跳过记录");
 			return;
 		}
-		
+
 		// 标记为已记录
 		window.__wx_channels_recorded_downloads[recordKey] = true;
-		
+
 		// 发送到记录API
 		fetch("/__wx_channels_api/record_download", {
 			method: "POST",
@@ -243,14 +241,14 @@ func (h *ScriptHandler) getDownloadTrackerScript() string {
 			body: JSON.stringify(data)
 		});
 	};
-	
+
 	// 暂停视频的辅助函数（只暂停，不阻止自动切换）
 	window.__wx_channels_pause_video__ = function() {
 		console.log('[视频助手] 暂停视频（下载期间）...');
 		try {
 			let pausedCount = 0;
 			const pausedVideos = [];
-			
+
 			// 方法1: 使用 Video.js API
 			if (typeof videojs !== 'undefined') {
 				const players = videojs.getAllPlayers?.() || [];
@@ -263,7 +261,7 @@ func (h *ScriptHandler) getDownloadTrackerScript() string {
 					}
 				});
 			}
-			
+
 			// 方法2: 查找所有 video 元素
 			const videos = document.querySelectorAll('video');
 			videos.forEach((video, index) => {
@@ -276,7 +274,7 @@ func (h *ScriptHandler) getDownloadTrackerScript() string {
 						// 不是 Video.js 播放器
 					}
 				}
-				
+
 				if (player && typeof player.pause === 'function') {
 					if (!player.paused()) {
 						player.pause();
@@ -293,9 +291,9 @@ func (h *ScriptHandler) getDownloadTrackerScript() string {
 					}
 				}
 			});
-			
+
 			console.log('[视频助手] 共暂停', pausedCount, '个视频');
-			
+
 			// 返回暂停的视频列表，用于后续恢复
 			return pausedVideos;
 		} catch (e) {
@@ -303,11 +301,11 @@ func (h *ScriptHandler) getDownloadTrackerScript() string {
 			return [];
 		}
 	};
-	
+
 	// 恢复视频播放的辅助函数
 	window.__wx_channels_resume_video__ = function(pausedVideos) {
 		if (!pausedVideos || pausedVideos.length === 0) return;
-		
+
 		console.log('[视频助手] 恢复视频播放...');
 		try {
 			pausedVideos.forEach(item => {
@@ -323,66 +321,66 @@ func (h *ScriptHandler) getDownloadTrackerScript() string {
 			console.error('[视频助手] 恢复视频失败:', e);
 		}
 	};
-	
+
 	// 覆盖原有的下载处理函数
 	const originalHandleClick = window.__wx_channels_handle_click_download__;
 	if (originalHandleClick) {
 		window.__wx_channels_handle_click_download__ = function(sp) {
 			// 暂停视频
 			const pausedVideos = window.__wx_channels_pause_video__();
-			
+
 			// 调用原始函数进行下载
 			originalHandleClick(sp);
-			
+
 			// 注意：不再手动记录下载，因为后端API已经处理了记录保存
 			// 移除重复的记录调用以避免CSV中出现重复记录
-			
+
 			// 3秒后恢复播放（给下载一些时间开始）
 			setTimeout(() => {
 				window.__wx_channels_resume_video__(pausedVideos);
 			}, 5000);
 		};
 	}
-	
+
 	// 覆盖当前视频下载函数
 	const originalDownloadCur = window.__wx_channels_download_cur__;
 	if (originalDownloadCur) {
 		window.__wx_channels_download_cur__ = function() {
 			// 暂停视频
 			const pausedVideos = window.__wx_channels_pause_video__();
-			
+
 			// 调用原始函数进行下载
 			originalDownloadCur();
-			
+
 			// 注意：不再手动记录下载，因为后端API已经处理了记录保存
 			// 移除重复的记录调用以避免CSV中出现重复记录
-			
+
 			// 3秒后恢复播放（给下载一些时间开始）
 			setTimeout(() => {
 				window.__wx_channels_resume_video__(pausedVideos);
 			}, 3000);
 		};
 	}
-	
+
 	// 优化封面下载函数：使用后端API保存到服务器
 	window.__wx_channels_handle_download_cover = function() {
 		if (window.__wx_channels_store__ && window.__wx_channels_store__.profile) {
 			const profile = window.__wx_channels_store__.profile;
 			// 优先使用thumbUrl，然后是fullThumbUrl，最后才是coverUrl
 			const coverUrl = profile.thumbUrl || profile.fullThumbUrl || profile.coverUrl;
-			
+
 			if (!coverUrl) {
 				alert("未找到封面图片");
 				return;
 			}
-			
+
 			// 记录日志
 			if (window.__wx_log) {
 				window.__wx_log({
 					msg: '正在保存封面到服务器...\n' + coverUrl
 				});
 			}
-			
+
 			// 构建请求数据
 			const requestData = {
 				coverUrl: coverUrl,
@@ -391,7 +389,7 @@ func (h *ScriptHandler) getDownloadTrackerScript() string {
 				author: profile.nickname || (profile.contact && profile.contact.nickname) || '未知作者',
 				forceSave: false
 			};
-			
+
 			// 添加授权头
 			const headers = {
 				'Content-Type': 'application/json'
@@ -399,7 +397,7 @@ func (h *ScriptHandler) getDownloadTrackerScript() string {
 			if (window.__WX_LOCAL_TOKEN__) {
 				headers['X-Local-Auth'] = window.__WX_LOCAL_TOKEN__;
 			}
-			
+
 			// 发送到后端API保存封面
 			fetch('/__wx_channels_api/save_cover', {
 				method: 'POST',
@@ -472,7 +470,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 			// 获取当前完整的HTML内容
 			var fullHtml = document.documentElement.outerHTML;
 			var currentUrl = window.location.href;
-			
+
 			// 发送到保存API
 			fetch("/__wx_channels_api/save_page_content", {
 				method: "POST",
@@ -495,7 +493,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 			console.error("获取页面内容失败:", error);
 		}
 	};
-	
+
 	// 监听URL变化，自动保存页面内容
 	let currentPageUrl = window.location.href;
 	const checkUrlChange = () => {
@@ -507,22 +505,22 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 			}, 8000);
 		}
 	};
-	
+
 	// 定期检查URL变化（适用于SPA）
 	setInterval(checkUrlChange, 1000);
-	
+
 	// 监听历史记录变化
 	window.addEventListener('popstate', () => {
 		setTimeout(() => {
 			window.__wx_channels_save_page_content();
 		}, 8000);
 	});
-	
+
 	// 在页面加载完成后也保存一次（增加到10秒，确保所有内容都已加载）
 	setTimeout(() => {
 		window.__wx_channels_save_page_content();
 	}, 10000);
-	
+
 	// 搜索页面数据采集功能
 	window.__wx_channels_collect_search_data = function() {
 		try {
@@ -531,16 +529,16 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 			if (!isSearchPage) {
 				return;
 			}
-			
+
 			console.log('[搜索数据采集] 检测到搜索页面，开始初始化...');
-			
+
 			// 记录日志
 			if (window.__wx_log) {
 				window.__wx_log({
 					msg: '搜索页面已加载'
 				});
 			}
-			
+
 			// HTML标签清理函数
 			var cleanHtmlTags = function(text) {
 				if (!text || typeof text !== 'string') return text || '';
@@ -566,7 +564,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 				cleaned = cleaned.replace(/&[a-zA-Z0-9#]+;/g, '');
 				return cleaned.trim();
 			};
-			
+
 			// 初始化批量下载面板（复用主页的批量下载功能）
 			try {
 				if (typeof window.__wx_channels_profile_collector !== 'undefined') {
@@ -583,7 +581,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 			} catch (e) {
 				console.error('[搜索数据采集] 初始化批量下载面板失败:', e);
 			}
-			
+
 			// 从URL中提取搜索关键词
 			var urlParams = new URLSearchParams(window.location.search);
 			var keyword = urlParams.get('q') || '';
@@ -591,14 +589,14 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 				keyword = decodeURIComponent(keyword);
 			}
 			console.log('[搜索数据采集] 搜索关键词:', keyword);
-			
+
 			// 记录搜索关键词
 			if (window.__wx_log && keyword) {
 				window.__wx_log({
 					msg: '搜索关键词: ' + keyword
 				});
 			}
-			
+
 			// 存储拦截到的搜索数据
 			var interceptedSearchData = {
 				profiles: [],
@@ -606,13 +604,13 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 				feedResults: [],
 				lastUpdate: 0
 			};
-			
+
 			// 拦截fetch请求（备用方案，主要依赖Store采集）
 			var originalFetch = window.fetch;
 			window.fetch = function() {
 				var args = Array.prototype.slice.call(arguments);
 				var url = args[0];
-				
+
 				// 检查是否是搜索相关的API（静默拦截，不输出日志）
 				if (typeof url === 'string' && (url.includes('/search') || url.includes('/finder/search') || url.includes('searchResult'))) {
 					return originalFetch.apply(this, args).then(function(response) {
@@ -692,15 +690,15 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 											}
 										});
 									}
-									
+
 									interceptedSearchData.lastUpdate = Date.now();
 									// 自动保存拦截到的数据（仅在Store采集失败时作为备用）
 									// 注意：Store采集是主要方式，API拦截仅作为备用
-									if (interceptedSearchData.profiles.length > 0 || 
-									    interceptedSearchData.liveResults.length > 0 || 
+									if (interceptedSearchData.profiles.length > 0 ||
+									    interceptedSearchData.liveResults.length > 0 ||
 									    interceptedSearchData.feedResults.length > 0) {
-										console.log('[搜索数据采集] [API备用] 从API提取到数据 - 账号:', interceptedSearchData.profiles.length, 
-										            ', 直播:', interceptedSearchData.liveResults.length, 
+										console.log('[搜索数据采集] [API备用] 从API提取到数据 - 账号:', interceptedSearchData.profiles.length,
+										            ', 直播:', interceptedSearchData.liveResults.length,
 										            ', 动态:', interceptedSearchData.feedResults.length);
 										saveInterceptedSearchData();
 									}
@@ -716,7 +714,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 				}
 				return originalFetch.apply(this, args);
 			};
-			
+
 			// 拦截XMLHttpRequest（备用方案，主要依赖Store采集）
 			var originalXHROpen = XMLHttpRequest.prototype.open;
 			var originalXHRSend = XMLHttpRequest.prototype.send;
@@ -762,8 +760,8 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 									}
 									interceptedSearchData.lastUpdate = Date.now();
 									// 仅在Store采集失败时作为备用
-									if (interceptedSearchData.profiles.length > 0 || 
-									    interceptedSearchData.liveResults.length > 0 || 
+									if (interceptedSearchData.profiles.length > 0 ||
+									    interceptedSearchData.liveResults.length > 0 ||
 									    interceptedSearchData.feedResults.length > 0) {
 										console.log('[搜索数据采集] [XHR备用] 从XHR提取到数据');
 										saveInterceptedSearchData();
@@ -777,7 +775,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 				}
 				return originalXHRSend.apply(this, arguments);
 			};
-			
+
 			// 保存拦截到的搜索数据
 			// 记录上次保存的数据数量，用于判断是否有变化
 			var lastSavedCount = {
@@ -785,24 +783,24 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 				liveResults: 0,
 				feedResults: 0
 			};
-			
+
 			var saveInterceptedSearchData = function(forceSave) {
 				// 检查数据是否有变化
-				var hasChange = forceSave || 
+				var hasChange = forceSave ||
 					interceptedSearchData.profiles.length !== lastSavedCount.profiles ||
 					interceptedSearchData.liveResults.length !== lastSavedCount.liveResults ||
 					interceptedSearchData.feedResults.length !== lastSavedCount.feedResults;
-				
+
 				if (!hasChange) {
 					// 数据没有变化，不保存
 					return;
 				}
-				
-				if (interceptedSearchData.profiles.length > 0 || 
-				    interceptedSearchData.liveResults.length > 0 || 
+
+				if (interceptedSearchData.profiles.length > 0 ||
+				    interceptedSearchData.liveResults.length > 0 ||
 				    interceptedSearchData.feedResults.length > 0) {
-					console.log('[搜索数据采集] 保存拦截到的数据 - 账号:', interceptedSearchData.profiles.length, 
-					            ', 直播:', interceptedSearchData.liveResults.length, 
+					console.log('[搜索数据采集] 保存拦截到的数据 - 账号:', interceptedSearchData.profiles.length,
+					            ', 直播:', interceptedSearchData.liveResults.length,
 					            ', 动态:', interceptedSearchData.feedResults.length);
 					fetch('/__wx_channels_api/save_search_data', {
 						method: 'POST',
@@ -832,11 +830,11 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 					});
 				}
 			};
-			
+
 			// 从Store收集搜索数据的函数（主要方式：直接访问Pinia Store）
 			var collectSearchData = function() {
 				console.log('[搜索数据采集] 尝试从Store采集数据...');
-				
+
 				// 优先方法：直接检查 appContext.$pinia.state._value.search（已知的数据路径）
 				var searchStore = null;
 				try {
@@ -850,7 +848,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 							// 检查是否是VNode（虚拟节点）
 							var isVNode = vueInstance.__v_isVNode || vueInstance.type !== undefined && vueInstance.props !== undefined;
 							var componentInstance = null;
-							
+
 							if (isVNode) {
 								// 从VNode的component属性获取组件实例
 								if (vueInstance.component) {
@@ -860,7 +858,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 								// 可能是组件实例
 								componentInstance = vueInstance;
 							}
-							
+
 							// 获取appContext（多种方式尝试）
 							var appContext = null;
 							if (componentInstance) {
@@ -876,7 +874,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 							if (!appContext && vueInstance.appContext) {
 								appContext = vueInstance.appContext;
 							}
-							
+
 							// 检查appContext中的Pinia
 							if (appContext && appContext.config && appContext.config.globalProperties && appContext.config.globalProperties.$pinia) {
 								var pinia = appContext.config.globalProperties.$pinia;
@@ -891,7 +889,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 				} catch (e) {
 					console.warn('[搜索数据采集] 快速路径检查失败:', e.message);
 				}
-				
+
 				// 如果快速路径找到了，直接提取数据，跳过所有其他检查
 				if (searchStore) {
 					console.log('[搜索数据采集] ✓ 使用快速路径找到搜索Store，跳过其他检查');
@@ -899,12 +897,12 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 				} else {
 					// 如果快速路径没找到，使用完整搜索（保留作为备用）
 					console.log('[搜索数据采集] 快速路径未找到，使用完整搜索...');
-					
+
 					// 方法1: 尝试从全局 store 中获取搜索数据
 				var findSearchStore = function(obj, depth, path) {
 					if (depth > 5 || !obj || typeof obj !== 'object' || obj === window) return null;
 					if (!path) path = '';
-					
+
 					// 检查是否包含搜索结果的典型字段
 					var hasFeedResults = Array.isArray(obj.feedResults);
 					var hasProfileResults = Array.isArray(obj.profileResults);
@@ -912,23 +910,23 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 					var hasAccountResults = Array.isArray(obj.accountResults);
 					var hasSearchResults = Array.isArray(obj.searchResults);
 					var hasFeeds = Array.isArray(obj.feeds);
-					var hasSearchFields = typeof obj.lastContent !== 'undefined' || 
-					                      typeof obj.isSearchingMoreFeeds !== 'undefined' || 
+					var hasSearchFields = typeof obj.lastContent !== 'undefined' ||
+					                      typeof obj.isSearchingMoreFeeds !== 'undefined' ||
 					                      typeof obj.noMoreFeeds !== 'undefined' ||
 					                      typeof obj.searchKeyword !== 'undefined' ||
 					                      typeof obj.query !== 'undefined';
-					
+
 					// 特殊检查：如果对象有 search 属性，检查 search 对象内部
 					if (obj.search && typeof obj.search === 'object') {
 						var searchObj = obj.search;
-						if (Array.isArray(searchObj.feedResults) || Array.isArray(searchObj.profileResults) || 
+						if (Array.isArray(searchObj.feedResults) || Array.isArray(searchObj.profileResults) ||
 						    Array.isArray(searchObj.results) || Array.isArray(searchObj.feeds) ||
 						    Array.isArray(searchObj.liveResults) || Array.isArray(searchObj.accountResults)) {
 							console.log('[搜索数据采集] 在路径', path + '.search', '发现搜索数据');
 							return searchObj; // 返回 search 对象
 						}
 					}
-					
+
 					// 调试：记录找到的数组字段
 					if (hasFeedResults || hasProfileResults || hasLiveResults || hasAccountResults || hasSearchResults || hasFeeds) {
 						var foundFields = [];
@@ -940,13 +938,13 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 						if (hasFeeds) foundFields.push('feeds(' + obj.feeds.length + ')');
 						console.log('[搜索数据采集] 在路径', path, '发现搜索结果字段:', foundFields.join(', '), hasSearchFields ? '(包含搜索字段)' : '(缺少搜索字段)');
 					}
-					
+
 					// 放宽条件：只要有搜索结果字段就返回（即使没有搜索字段）
 					if (hasFeedResults || hasProfileResults || hasLiveResults || hasAccountResults || hasSearchResults || hasFeeds) {
 						console.log('[搜索数据采集] 找到搜索Store，路径:', path);
 						return obj;
 					}
-					
+
 					// 递归查找
 					try {
 						var keys = Object.keys(obj);
@@ -961,9 +959,9 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 					} catch (e) {}
 					return null;
 				};
-				
+
 					// 跳过全局对象检查（已知不包含搜索数据，直接进入组件实例检查）
-				
+
 					// 方法2: 尝试从 Vuex/Pinia store 实例获取（静默检查）
 					if (!searchStore && window.__VUE_DEVTOOLS_GLOBAL_HOOK__) {
 						var instances = window.__VUE_DEVTOOLS_GLOBAL_HOOK__.apps || [];
@@ -1001,7 +999,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 							}
 						}
 					}
-				
+
 					// 方法3: 尝试从Vue组件实例中查找（静默检查，减少日志）
 					if (!searchStore) {
 					try {
@@ -1015,7 +1013,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 								// 检查是否是VNode（虚拟节点）
 								var isVNode = vueInstance.__v_isVNode || vueInstance.type !== undefined && vueInstance.props !== undefined;
 								var componentInstance = null;
-								
+
 								if (isVNode) {
 									// 从VNode的component属性获取组件实例
 									if (vueInstance.component) {
@@ -1025,7 +1023,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 									// 可能是组件实例
 									componentInstance = vueInstance;
 								}
-								
+
 								// 如果找到了组件实例，检查它（优先检查Pinia）
 								if (componentInstance) {
 									// 尝试多种方式访问store
@@ -1040,7 +1038,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 											}
 											console.log('[搜索数据采集] $store键:', storeKeys.slice(0, 20).join(', '));
 										} catch (err) {}
-										
+
 										// 检查Vuex store的模块（递归检查所有嵌套模块）
 										var checkVuexModules = function(moduleNode, modulePath) {
 											if (!moduleNode || !moduleNode._children) return;
@@ -1066,14 +1064,14 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 											}
 											return false;
 										};
-										
+
 										if (store._modules && store._modules.root) {
 											console.log('[搜索数据采集] 检查Vuex模块...');
 											if (checkVuexModules(store._modules.root, '')) {
 												if (searchStore) break;
 											}
 										}
-										
+
 										// 检查store.state（特别检查 state.search 模块）
 										if (!searchStore && store.state) {
 											console.log('[搜索数据采集] 检查 $store.state');
@@ -1099,14 +1097,14 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 											}
 											console.log('[搜索数据采集] $pinia键:', piniaKeys.slice(0, 20).join(', '));
 										} catch (err) {}
-										
+
 										// 优先检查 pinia.state._value.search（根据实际找到的路径）
 										if (pinia.state && pinia.state._value && pinia.state._value.search) {
 											console.log('[搜索数据采集] 发现 $pinia.state._value.search，直接检查');
 											searchStore = findSearchStore(pinia.state._value.search, 0, 'component.$pinia.state._value.search');
 											if (searchStore) break;
 										}
-										
+
 										// 检查Pinia store
 										if (!searchStore && pinia._s) {
 											console.log('[搜索数据采集] 检查Pinia stores...');
@@ -1121,18 +1119,18 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 												}
 											}
 										}
-										
+
 										// 如果还没找到，递归查找整个 pinia 对象
 										if (!searchStore) {
 											searchStore = findSearchStore(pinia, 0, 'component.$pinia');
 										}
 										if (searchStore) break;
 									}
-									
+
 									// 尝试从组件实例本身查找
 									searchStore = findSearchStore(componentInstance, 0, 'component.instance');
 									if (searchStore) break;
-									
+
 									// 尝试从组件的setupState查找（Vue 3 Composition API）
 									if (componentInstance.setupState) {
 										console.log('[搜索数据采集] 找到 setupState');
@@ -1143,7 +1141,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 										searchStore = findSearchStore(componentInstance.setupState, 0, 'component.setupState');
 										if (searchStore) break;
 									}
-									
+
 									// 尝试从ctx查找（Vue 3 Options API）
 									if (componentInstance.ctx) {
 										console.log('[搜索数据采集] 找到 ctx');
@@ -1154,14 +1152,14 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 										searchStore = findSearchStore(componentInstance.ctx, 0, 'component.ctx');
 										if (searchStore) break;
 									}
-									
+
 									// 尝试从exposed查找（Vue 3 expose）
 									if (componentInstance.exposed) {
 										console.log('[搜索数据采集] 找到 exposed');
 										searchStore = findSearchStore(componentInstance.exposed, 0, 'component.exposed');
 										if (searchStore) break;
 									}
-									
+
 									// 尝试从parent查找（向上遍历组件树）
 									if (componentInstance.parent) {
 										console.log('[搜索数据采集] 找到 parent，尝试向上查找');
@@ -1180,12 +1178,12 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 										if (searchStore) break;
 									}
 								}
-								
+
 								// 尝试从appContext查找（Vue 3）- 无论是否是VNode都有appContext
 								if (vueInstance.appContext) {
 									console.log('[搜索数据采集] 找到 appContext');
 									var appContext = vueInstance.appContext;
-									
+
 									// 输出appContext的结构
 									try {
 										var acKeys = [];
@@ -1194,14 +1192,14 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 										}
 										console.log('[搜索数据采集] appContext键:', acKeys.join(', '));
 									} catch (err) {}
-									
+
 									// 检查config.globalProperties
 									if (appContext.config && appContext.config.globalProperties) {
 										console.log('[搜索数据采集] 检查 appContext.config.globalProperties');
 										if (appContext.config.globalProperties.$store) {
 											console.log('[搜索数据采集] 找到 $store (appContext)');
 											var store = appContext.config.globalProperties.$store;
-											
+
 											// 检查Vuex store的模块（递归检查所有嵌套模块）
 											var checkVuexModules = function(moduleNode, modulePath) {
 												if (!moduleNode || !moduleNode._children) return;
@@ -1227,14 +1225,14 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 												}
 												return false;
 											};
-											
+
 											if (store._modules && store._modules.root) {
 												console.log('[搜索数据采集] 检查Vuex模块 (appContext)...');
 												if (checkVuexModules(store._modules.root, '')) {
 													if (searchStore) break;
 												}
 											}
-											
+
 											// 检查store.state（输出state的键用于调试，特别检查 state.search）
 											if (!searchStore && store.state) {
 												console.log('[搜索数据采集] 检查 $store.state (appContext)');
@@ -1272,7 +1270,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 											if (searchStore) break;
 										}
 									}
-									
+
 									// 检查provides（Vue 3依赖注入）
 									if (appContext.provides) {
 										console.log('[搜索数据采集] 检查 appContext.provides');
@@ -1337,11 +1335,11 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 											if (searchStore) break;
 										}
 									}
-									
+
 									// 检查appContext本身
 									searchStore = findSearchStore(appContext, 0, 'component.appContext');
 									if (searchStore) break;
-									
+
 									// 检查app（Vue应用实例）
 									if (appContext.app) {
 										console.log('[搜索数据采集] 检查 appContext.app');
@@ -1367,7 +1365,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 										}
 									}
 								}
-								
+
 								// 如果还没找到，尝试从VNode本身查找（可能数据在props或其他地方）
 								if (!searchStore && isVNode) {
 									console.log('[搜索数据采集] 尝试从VNode本身查找');
@@ -1384,7 +1382,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 						console.warn('[搜索数据采集] 从组件实例查找失败:', err);
 					}
 				}
-				
+
 					// 方法4: 尝试从window对象中深度查找（静默检查，最后手段）
 					if (!searchStore) {
 						var windowKeys = ['__APP__', '__VUE__', '__NUXT__', '__INITIAL_STATE__', 'app', 'store', 'vue', 'Vue', 'vueApp', 'vuex', 'pinia'];
@@ -1397,11 +1395,11 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 						}
 					}
 				}
-				
+
 				// 从 store 中提取数据并合并到拦截数据中
 				if (searchStore) {
 					console.log('[搜索数据采集] 找到搜索Store，开始提取数据...');
-					
+
 					// 收集账号信息 (profileResults/accountResults)
 					if (Array.isArray(searchStore.profileResults)) {
 						console.log('[搜索数据采集] 从Store找到profileResults，数量:', searchStore.profileResults.length);
@@ -1424,10 +1422,10 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 							var accountId = account.id || account.accountId || account.username || account.nickname || account.finderUsername;
 							// 如果account对象有contact属性，检查contact中的ID字段
 							if (!accountId && account.contact && typeof account.contact === 'object') {
-								accountId = account.contact.id || account.contact.username || account.contact.finderUsername || 
+								accountId = account.contact.id || account.contact.username || account.contact.finderUsername ||
 								           account.contact.accountId || account.contact.nickname;
 							}
-							
+
 							if (!accountId) {
 								// 如果前3个都没有ID，输出调试信息
 								if (index < 3) {
@@ -1447,7 +1445,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 								} else if (account.reqIndex !== undefined) {
 									uniqueKey = 'reqIndex_' + account.reqIndex;
 								}
-								
+
 								if (uniqueKey) {
 									// 检查是否已存在（使用唯一键）
 									var exists = interceptedSearchData.profiles.find(function(p) {
@@ -1479,7 +1477,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 							var exists = interceptedSearchData.profiles.find(function(p) {
 								var pId = p.id || p.accountId || p.username || p.finderUsername;
 								if (!pId && p.contact && typeof p.contact === 'object') {
-									pId = p.contact.id || p.contact.username || p.contact.finderUsername || 
+									pId = p.contact.id || p.contact.username || p.contact.finderUsername ||
 									      p.contact.accountId || p.contact.nickname;
 								}
 								return pId === accountId;
@@ -1493,7 +1491,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 						});
 						console.log('[搜索数据采集] accountResults处理完成 - 添加:', addedCount, ', 跳过:', skippedCount, ', profiles总数:', interceptedSearchData.profiles.length);
 					}
-					
+
 					// 收集直播数据 (liveResults)
 					if (Array.isArray(searchStore.liveResults)) {
 						console.log('[搜索数据采集] 从Store找到liveResults，数量:', searchStore.liveResults.length);
@@ -1506,7 +1504,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 						});
 						console.log('[搜索数据采集] liveResults处理完成 - 添加:', liveAddedCount, ', liveResults总数:', interceptedSearchData.liveResults.length);
 					}
-					
+
 					// 收集动态数据 (feedResults)
 					if (Array.isArray(searchStore.feedResults)) {
 						console.log('[搜索数据采集] 从Store找到feedResults，数量:', searchStore.feedResults.length);
@@ -1519,12 +1517,12 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 						});
 						console.log('[搜索数据采集] feedResults处理完成 - 添加:', feedAddedCount, ', feedResults总数:', interceptedSearchData.feedResults.length);
 					}
-					
+
 					// 如果从Store获取到数据，保存一次
-					console.log('[搜索数据采集] Store数据提取完成 - profiles:', interceptedSearchData.profiles.length, 
-					            ', liveResults:', interceptedSearchData.liveResults.length, 
+					console.log('[搜索数据采集] Store数据提取完成 - profiles:', interceptedSearchData.profiles.length,
+					            ', liveResults:', interceptedSearchData.liveResults.length,
 					            ', feedResults:', interceptedSearchData.feedResults.length);
-					
+
 					// 将搜索数据暴露到全局对象，供前端导出使用
 					if (!window.__wx_channels_search_data) {
 						window.__wx_channels_search_data = {};
@@ -1533,10 +1531,10 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 					window.__wx_channels_search_data.liveResults = interceptedSearchData.liveResults;
 					window.__wx_channels_search_data.feedResults = interceptedSearchData.feedResults;
 					window.__wx_channels_search_data.keyword = keyword;
-					
+
 					// 只在数据有变化时才保存（在checkAndUpdateData中会处理保存）
 					// 这里不保存，避免重复保存
-					
+
 					// 将 feedResults 转换为批量下载面板需要的格式，并添加到批量下载面板
 					if (interceptedSearchData.feedResults.length > 0) {
 						try {
@@ -1563,7 +1561,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 													} else if (media.fullUrl) {
 														videoUrl = media.fullUrl;
 													}
-													
+
 													var videoData = {
 														type: 'media',
 														id: feed.id,
@@ -1599,7 +1597,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 														mediaType: media.mediaType,
 														timestamp: Date.now()
 													};
-													
+
 													window.__wx_channels_profile_collector.addVideoFromAPI(videoData);
 													videoCount++;
 												}
@@ -1628,7 +1626,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 											} else if (media.fullUrl) {
 												videoUrl = media.fullUrl;
 											}
-											
+
 											var videoData = {
 												type: 'media',
 												id: feed.id,
@@ -1664,7 +1662,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 												mediaType: media.mediaType,
 												timestamp: Date.now()
 											};
-											
+
 											// 添加到批量下载面板
 											window.__wx_channels_profile_collector.addVideoFromAPI(videoData);
 											videoCount++;
@@ -1679,10 +1677,10 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 							console.error('[搜索数据采集] 转换视频数据失败:', e);
 						}
 					}
-					
+
 					// 检查是否有任何数据
-					if (interceptedSearchData.profiles.length === 0 && 
-					    interceptedSearchData.liveResults.length === 0 && 
+					if (interceptedSearchData.profiles.length === 0 &&
+					    interceptedSearchData.liveResults.length === 0 &&
 					    interceptedSearchData.feedResults.length === 0) {
 						console.warn('[搜索数据采集] 警告：从Store提取数据后，所有数组都为空！');
 					}
@@ -1690,45 +1688,45 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 					console.log('[搜索数据采集] 未找到搜索Store，可能Store尚未加载或结构不同');
 				}
 			};
-			
+
 			// 注意：DOM提取已移除，因为Pinia Store已经能稳定获取完整数据
-			
+
 			// 页面加载后尝试从Store收集数据（智能重试：如果成功找到数据就停止重试）
 			var retryCount = 0;
 			var maxRetries = 3; // 减少到3次重试
 			var retryDelays = [3000, 5000, 8000]; // 减少延迟次数
 			var dataFound = false; // 标记是否已找到数据
-			
+
 			var tryCollectSearchData = function() {
 				if (retryCount < maxRetries && !dataFound) {
 					console.log('[搜索数据采集] 第', (retryCount + 1), '次尝试从Store采集数据...');
-					
+
 					// 检查是否成功找到数据
 					var beforeProfiles = interceptedSearchData.profiles.length;
 					var beforeLive = interceptedSearchData.liveResults.length;
 					var beforeFeed = interceptedSearchData.feedResults.length;
-					
+
 					collectSearchData();
-					
+
 					// 检查数据是否有增加
 					var afterProfiles = interceptedSearchData.profiles.length;
 					var afterLive = interceptedSearchData.liveResults.length;
 					var afterFeed = interceptedSearchData.feedResults.length;
-					
+
 					// 如果找到了数据（账号、直播或动态），标记为成功
 					if (afterProfiles > 0 || afterLive > 0 || afterFeed > 0) {
 						dataFound = true;
 						console.log('[搜索数据采集] ✓ 已成功采集到数据，停止重试');
 						return; // 停止重试
 					}
-					
+
 					retryCount++;
 					if (retryCount < maxRetries && !dataFound) {
 						setTimeout(tryCollectSearchData, retryDelays[retryCount - 1] || 3000);
 					}
 				}
 			};
-			
+
 			if (document.readyState === 'complete') {
 				setTimeout(tryCollectSearchData, retryDelays[0]);
 			} else {
@@ -1736,7 +1734,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 					setTimeout(tryCollectSearchData, retryDelays[0]);
 				});
 			}
-			
+
 			// 监听 URL 变化（搜索页是 SPA），重新初始化
 			var lastUrl = window.location.href;
 			setInterval(function() {
@@ -1751,7 +1749,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 					}
 				}
 			}, 1000);
-			
+
 			// 监听页面变化并自动更新数据
 			var updateTimer = null;
 			var lastUpdateTime = 0;
@@ -1760,7 +1758,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 				liveResults: 0,
 				feedResults: 0
 			};
-			
+
 			var checkAndUpdateData = function(source) {
 				// 记录当前数据数量
 				var currentDataCount = {
@@ -1768,18 +1766,18 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 					liveResults: interceptedSearchData.liveResults.length,
 					feedResults: interceptedSearchData.feedResults.length
 				};
-				
+
 				// 重新采集数据
 				collectSearchData();
-				
+
 				// 检查是否有新数据
 				var newProfiles = interceptedSearchData.profiles.length - currentDataCount.profiles;
 				var newLives = interceptedSearchData.liveResults.length - currentDataCount.liveResults;
 				var newFeeds = interceptedSearchData.feedResults.length - currentDataCount.feedResults;
-				
+
 				if (newProfiles > 0 || newLives > 0 || newFeeds > 0) {
 					console.log('[搜索数据采集] [' + (source || '检测') + '] 检测到新数据 - 账户:', newProfiles, ', 直播:', newLives, ', 动态:', newFeeds);
-					
+
 					// 更新全局搜索数据
 					if (!window.__wx_channels_search_data) {
 						window.__wx_channels_search_data = {};
@@ -1788,7 +1786,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 					window.__wx_channels_search_data.liveResults = interceptedSearchData.liveResults;
 					window.__wx_channels_search_data.feedResults = interceptedSearchData.feedResults;
 					window.__wx_channels_search_data.keyword = keyword;
-					
+
 					// 如果有新的feedResults，添加到批量下载面板
 					if (newFeeds > 0 && typeof window.__wx_channels_profile_collector !== 'undefined') {
 						try {
@@ -1805,7 +1803,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 										} else if (media.fullUrl) {
 											videoUrl = media.fullUrl;
 										}
-										
+
 										var videoData = {
 											type: 'media',
 											id: feed.id,
@@ -1841,7 +1839,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 											mediaType: media.mediaType,
 											timestamp: Date.now()
 										};
-										
+
 										window.__wx_channels_profile_collector.addVideoFromAPI(videoData);
 										videoCount++;
 									}
@@ -1854,10 +1852,10 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 							console.error('[搜索数据采集] 更新视频数据失败:', e);
 						}
 					}
-					
+
 					// 保存更新的数据
 					saveInterceptedSearchData();
-					
+
 					// 更新最后的数据计数
 					lastDataCount = {
 						profiles: interceptedSearchData.profiles.length,
@@ -1866,7 +1864,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 					};
 				}
 			};
-			
+
 			// 防抖函数
 			var debounceCheck = function(source) {
 				clearTimeout(updateTimer);
@@ -1879,7 +1877,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 					}
 				}, 300);
 			};
-			
+
 			// 1. 监听DOM变化（MutationObserver）
 			try {
 				var observer = new MutationObserver(function(mutations) {
@@ -1897,7 +1895,7 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 						debounceCheck('DOM变化');
 					}
 				});
-				
+
 				// 观察整个文档的变化
 				observer.observe(document.body, {
 					childList: true,
@@ -1907,30 +1905,30 @@ func (h *ScriptHandler) getSavePageContentScript() string {
 			} catch (e) {
 				console.warn('[搜索数据采集] MutationObserver初始化失败:', e);
 			}
-			
+
 			// 2. 监听滚动事件（作为补充）
 			window.addEventListener('scroll', function() {
 				var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 				var windowHeight = window.innerHeight;
 				var documentHeight = document.documentElement.scrollHeight;
-				
+
 				// 当滚动到底部附近时触发检查
 				if (documentHeight - scrollTop - windowHeight < 200) {
 					debounceCheck('滚动到底部');
 				}
 			}, { passive: true });
-			
+
 			// 3. 定期检查Store数据变化（每3秒）
 			setInterval(function() {
 				debounceCheck('定期检查');
 			}, 3000);
-			
+
 			console.log('[搜索数据采集] ✓ 已启动页面变化监听（DOM变化、滚动、定期检查）');
 		} catch (error) {
 			console.error('搜索数据采集初始化失败:', error);
 		}
 	};
-	
+
 	// 初始化搜索数据采集
 	if (document.readyState === 'complete') {
 		window.__wx_channels_collect_search_data();
@@ -1954,54 +1952,54 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 		completeThreshold: 0.98, // 认为98%缓冲完成时视频已缓存完成
 		checkInterval: null,
 		notificationShown: false, // 防止重复显示通知
-		
+
 		// 开始监控缓存
 		startMonitoring: function(expectedSize) {
 			console.log('=== 开始启动视频缓存监控 ===');
-			
+
 			// 检查播放器状态
 			const vjsPlayer = document.querySelector('.video-js');
 			const video = vjsPlayer ? vjsPlayer.querySelector('video') : document.querySelector('video');
-			
+
 			if (!video) {
 				console.error('未找到视频元素，无法启动监控');
 				return;
 			}
-			
+
 			console.log('视频元素状态:');
 			console.log('- readyState:', video.readyState);
 			console.log('- duration:', video.duration);
 			console.log('- buffered.length:', video.buffered ? video.buffered.length : 0);
-			
+
 			if (this.checkInterval) {
 				clearInterval(this.checkInterval);
 			}
-			
+
 			this.isBuffering = true;
 			this.lastBufferTime = Date.now();
 			this.totalBufferSize = 0;
 			this.videoSize = expectedSize || 0;
 			this.notificationShown = false; // 重置通知状态
-			
+
 			console.log('视频缓存监控已启动');
 			console.log('- 视频大小:', (this.videoSize / (1024 * 1024)).toFixed(2) + 'MB');
 			console.log('- 监控间隔: 2秒');
-			
+
 			// 定期检查缓冲状态 - 增加检查频率
 			this.checkInterval = setInterval(() => this.checkBufferStatus(), 2000);
-			
+
 			// 添加可见的缓存状态指示器
 			this.addStatusIndicator();
-			
+
 			// 监听视频播放完成事件
 			this.setupVideoEndedListener();
-			
+
 			// 延迟开始监控，让播放器有时间初始化
 			setTimeout(() =>{
 				this.monitorNativeBuffering();
 			}, 1000);
 		},
-		
+
 		// 监控Video.js播放器和原生视频元素的缓冲状态
 		monitorNativeBuffering: function() {
 			let firstCheck = true; // 标记是否是第一次检查
@@ -2009,7 +2007,7 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 				// 优先检查Video.js播放器
 				const vjsPlayer = document.querySelector('.video-js');
 				let video = null;
-				
+
 				if (vjsPlayer) {
 					// 从Video.js播放器中获取video元素
 					video = vjsPlayer.querySelector('video');
@@ -2028,7 +2026,7 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 						}
 					}
 				}
-				
+
 				if (video) {
 					// 获取预加载进度条数据
 					if (video.buffered && video.buffered.length > 0 && video.duration) {
@@ -2036,23 +2034,23 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 						const bufferedEnd = video.buffered.end(video.buffered.length - 1);
 						// 计算缓冲百分比
 						const bufferedPercent = (bufferedEnd / video.duration) * 100;
-						
+
 						// 更新页面指示器
 						const indicator = document.getElementById('video-cache-indicator');
 						if (indicator) {
 							indicator.innerHTML = '<div>视频缓存中: ' + bufferedPercent.toFixed(1) + '% (Video.js播放器)</div>';
-							
+
 							// 高亮显示接近完成的状态
 							if (bufferedPercent >= 95) {
 								indicator.style.backgroundColor = 'rgba(0,128,0,0.8)';
 							}
 						}
-						
+
 						// 检查Video.js播放器的就绪状态（只在第一次检查时输出）
 						if (vjsPlayer && typeof vjsPlayer.readyState !== 'undefined' && firstCheck) {
 							console.log('Video.js播放器就绪状态:', vjsPlayer.readyState);
 						}
-						
+
 						// 检查是否缓冲完成
 						if (bufferedPercent >= 98) {
 							console.log('根据Video.js播放器数据，视频已缓存完成 (' + bufferedPercent.toFixed(1) + '%)');
@@ -2064,7 +2062,7 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 				}
 				return false; // 继续监控
 			};
-			
+
 			// 立即检查一次
 			if (!checkBufferedProgress()) {
 				// 每秒检查一次预加载进度
@@ -2075,19 +2073,19 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 				}, 1000);
 			}
 		},
-		
+
 		// 设置Video.js播放器和视频播放结束监听
 		setupVideoEndedListener: function() {
 			// 尝试查找Video.js播放器和视频元素
 			setTimeout(() => {
 				const vjsPlayer = document.querySelector('.video-js');
 				let video = null;
-				
+
 				if (vjsPlayer) {
 					// 从Video.js播放器中获取video元素
 					video = vjsPlayer.querySelector('video');
 					console.log('为Video.js播放器设置事件监听');
-					
+
 					// 尝试监听Video.js特有的事件
 					if (vjsPlayer.addEventListener) {
 						vjsPlayer.addEventListener('ended', () => {
@@ -2095,7 +2093,7 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 							this.showNotification();
 							this.stopMonitoring();
 						});
-						
+
 						vjsPlayer.addEventListener('loadeddata', () => {
 							console.log('Video.js播放器数据加载完成');
 						});
@@ -2108,7 +2106,7 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 						console.log('为普通video元素设置事件监听');
 					}
 				}
-				
+
 				if (video) {
 					// 监听视频播放结束事件
 					video.addEventListener('ended', () => {
@@ -2116,7 +2114,7 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 						this.showNotification();
 						this.stopMonitoring();
 					});
-					
+
 					// 如果视频已在播放中，添加定期检查播放状态
 					if (!video.paused) {
 						const playStateInterval = setInterval(() => {
@@ -2132,32 +2130,32 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 				}
 			}, 3000); // 延迟3秒再查找视频元素，确保Video.js播放器完全初始化
 		},
-		
+
 		// 添加缓冲状态指示器
 		addStatusIndicator: function() {
 			console.log('正在创建缓存状态指示器...');
-			
+
 			// 移除现有指示器
 			const existingIndicator = document.getElementById('video-cache-indicator');
 			if (existingIndicator) {
 				console.log('移除现有指示器');
 				existingIndicator.remove();
 			}
-			
+
 			// 创建新指示器
 			const indicator = document.createElement('div');
 			indicator.id = 'video-cache-indicator';
 			indicator.style.cssText = "position:fixed;bottom:20px;left:20px;background-color:rgba(0,0,0,0.8);color:white;padding:10px 15px;border-radius:6px;z-index:99999;font-size:14px;font-family:Arial,sans-serif;border:2px solid rgba(255,255,255,0.3);";
 			indicator.innerHTML = '<div>🔄 视频缓存中: 0%</div>';
 			document.body.appendChild(indicator);
-			
+
 			console.log('缓存状态指示器已创建并添加到页面');
-			
+
 			// 初始化进度跟踪变量
 			this.lastLoggedProgress = 0;
 			this.stuckCheckCount = 0;
 			this.maxStuckCount = 30; // 30秒不变则认为停滞
-			
+
 			// 每秒更新进度
 			const updateInterval = setInterval(() => {
 				if (!this.isBuffering) {
@@ -2165,21 +2163,21 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 					indicator.remove();
 					return;
 				}
-				
+
 				let progress = 0;
 				let progressSource = 'unknown';
-				
+
 				// 优先方案：从video元素实时读取（最准确）
 				const vjsPlayer = document.querySelector('.video-js');
 				let video = vjsPlayer ? vjsPlayer.querySelector('video') : null;
-				
+
 				if (!video) {
 					const videoElements = document.querySelectorAll('video');
 					if (videoElements.length > 0) {
 						video = videoElements[0];
 					}
 				}
-				
+
 				if (video && video.buffered && video.buffered.length > 0) {
 					try {
 						const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -2192,31 +2190,31 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 						// 忽略读取错误
 					}
 				}
-				
+
 				// 备用方案：使用 totalBufferSize
 				if (progress === 0 && this.videoSize > 0 && this.totalBufferSize > 0) {
 					progress = (this.totalBufferSize / this.videoSize) * 100;
 					progressSource = 'totalBufferSize';
 				}
-				
+
 				// 限制进度范围
 				progress = Math.min(Math.max(progress, 0), 100);
-				
+
 				// 检测进度是否停滞
 				const progressChanged = Math.abs(progress - this.lastLoggedProgress) >= 0.1;
-				
+
 				if (!progressChanged) {
 					this.stuckCheckCount++;
 				} else {
 					this.stuckCheckCount = 0;
 				}
-				
+
 				// 更新指示器
 				if (progress > 0) {
 					// 根据停滞状态显示不同的图标
 					let icon = '🔄';
 					let statusText = '视频缓存中';
-					
+
 					if (this.stuckCheckCount >= this.maxStuckCount) {
 						icon = '⏸️';
 						statusText = '缓存暂停';
@@ -2230,15 +2228,15 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 					} else {
 						indicator.style.backgroundColor = 'rgba(0,0,0,0.8)';
 					}
-					
+
 					indicator.innerHTML = '<div>' + icon + ' ' + statusText + ': ' + progress.toFixed(1) + '%</div>';
-					
+
 					// 只在进度变化≥1%时输出日志
 					if (Math.abs(progress - this.lastLoggedProgress) >= 1) {
 						console.log('缓存进度更新:', progress.toFixed(1) + '% (来源:' + progressSource + ')');
 						this.lastLoggedProgress = progress;
 					}
-					
+
 					// 停滞提示（只输出一次）
 					if (this.stuckCheckCount === this.maxStuckCount) {
 						console.log('⏸️ 缓存进度长时间未变化 (' + progress.toFixed(1) + '%)，可能原因：');
@@ -2250,48 +2248,48 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 				} else {
 					indicator.innerHTML = '<div>⏳ 等待视频数据...</div>';
 				}
-				
+
 				// 如果进度达到98%以上，检查是否完成
 				if (progress >= 98) {
 					this.checkCompletion();
 				}
 			}, 1000);
 		},
-		
+
 		// 添加缓冲块
 		addBuffer: function(buffer) {
 			if (!this.isBuffering) return;
-			
+
 			// 更新最后缓冲时间
 			this.lastBufferTime = Date.now();
-			
+
 			// 累计缓冲大小
 			if (buffer && buffer.byteLength) {
 				this.totalBufferSize += buffer.byteLength;
-				
+
 				// 输出调试信息到控制台
 				if (this.videoSize > 0) {
 					const percent = ((this.totalBufferSize / this.videoSize) * 100).toFixed(1);
 					console.log('视频缓存进度: ' + percent + '% (' + (this.totalBufferSize / (1024 * 1024)).toFixed(2) + 'MB/' + (this.videoSize / (1024 * 1024)).toFixed(2) + 'MB)');
 				}
 			}
-			
+
 			// 检查是否接近完成
 			this.checkCompletion();
 		},
-		
+
 		// 检查Video.js播放器和原生视频的缓冲状态
 		checkBufferStatus: function() {
 			if (!this.isBuffering) return;
-			
+
 			// 优先检查Video.js播放器
 			const vjsPlayer = document.querySelector('.video-js');
 			let video = null;
-			
+
 			if (vjsPlayer) {
 				// 从Video.js播放器中获取video元素
 				video = vjsPlayer.querySelector('video');
-				
+
 				// 检查Video.js播放器特有的状态（只在状态变化时输出日志）
 				if (vjsPlayer.classList.contains('vjs-has-started')) {
 					if (!this._vjsStartedLogged) {
@@ -2299,7 +2297,7 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 						this._vjsStartedLogged = true;
 					}
 				}
-				
+
 				if (vjsPlayer.classList.contains('vjs-waiting')) {
 					if (!this._vjsWaitingLogged) {
 						console.log('Video.js播放器正在等待数据');
@@ -2308,7 +2306,7 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 				} else {
 					this._vjsWaitingLogged = false; // 重置标记，以便下次等待时再次输出
 				}
-				
+
 				if (vjsPlayer.classList.contains('vjs-ended')) {
 					console.log('Video.js播放器播放结束，标记为缓存完成');
 					this.checkCompletion(true);
@@ -2321,14 +2319,14 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 					video = videoElements[0];
 				}
 			}
-			
+
 			if (video) {
 				if (video.buffered && video.buffered.length > 0 && video.duration) {
 					// 获取最后缓冲时间范围的结束位置
 					const bufferedEnd = video.buffered.end(video.buffered.length - 1);
 					// 计算缓冲百分比
 					const bufferedPercent = (bufferedEnd / video.duration) * 100;
-					
+
 					// 如果预加载接近完成，触发完成检测（只输出一次日志）
 					if (bufferedPercent >= 95 && !this._preloadNearCompleteLogged) {
 						console.log('检测到视频预加载接近完成 (' + bufferedPercent.toFixed(1) + '%)');
@@ -2336,7 +2334,7 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 						this.checkCompletion(true);
 					}
 				}
-				
+
 				// 只在readyState为4且缓冲百分比较高时才认为完成
 				if (video.readyState >= 4 && video.buffered && video.buffered.length > 0 && video.duration) {
 					const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -2348,27 +2346,27 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 					}
 				}
 			}
-			
+
 			// 如果超过10秒没有新的缓冲数据且已经缓冲了部分数据，可能表示视频已暂停或缓冲完成
 			const timeSinceLastBuffer = Date.now() - this.lastBufferTime;
 			if (timeSinceLastBuffer > 10000 && this.totalBufferSize > 0) {
 				this.checkCompletion(true);
 			}
 		},
-		
+
 		// 检查是否完成
 		checkCompletion: function(forcedCheck) {
 			if (!this.isBuffering) return;
-			
+
 			let isComplete = false;
-			
+
 			// 优先检查Video.js播放器是否已播放完成
 			const vjsPlayer = document.querySelector('.video-js');
 			let video = null;
-			
+
 			if (vjsPlayer) {
 				video = vjsPlayer.querySelector('video');
-				
+
 				// 检查Video.js播放器的完成状态
 				if (vjsPlayer.classList.contains('vjs-ended')) {
 					console.log('Video.js播放器已播放完毕，认为缓存完成');
@@ -2381,14 +2379,14 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 					video = videoElements[0];
 				}
 			}
-			
+
 			if (video && !isComplete) {
 				// 如果视频已经播放完毕或接近结束，直接认为完成
 				if (video.ended || (video.duration && video.currentTime > 0 && video.duration - video.currentTime < 2)) {
 					console.log('视频已播放完毕或接近结束，认为缓存完成');
 					isComplete = true;
 				}
-				
+
 				// 只在readyState为4且缓冲百分比较高时才认为完成
 				if (video.readyState >= 4 && video.buffered && video.buffered.length > 0 && video.duration) {
 					const bufferedEnd = video.buffered.end(video.buffered.length - 1);
@@ -2399,7 +2397,7 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 					}
 				}
 			}
-			
+
 			// 如果未通过播放状态判断完成，再检查缓冲大小
 			if (!isComplete) {
 				// 如果知道视频大小，则根据百分比判断
@@ -2408,28 +2406,28 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 					// 对短视频降低阈值要求
 					const threshold = this.videoSize < 5 * 1024 * 1024 ? 0.9 : this.completeThreshold; // 5MB以下视频降低阈值到90%
 					isComplete = ratio >= threshold;
-				} 
+				}
 				// 强制检查：如果长时间没有新数据且视频元素可以播放到最后，也认为已完成
 				else if (forcedCheck && video) {
 					if (video.readyState >= 3 && video.buffered.length > 0) {
 						const bufferedEnd = video.buffered.end(video.buffered.length - 1);
 						const duration = video.duration;
 						isComplete = duration > 0 && (bufferedEnd / duration) >= 0.95; // 降低阈值到95%
-						
+
 						if (isComplete) {
 							console.log('强制检查：根据缓冲数据判断视频缓存完成');
 						}
 					}
 				}
 			}
-			
+
 			// 如果完成，显示通知
 			if (isComplete) {
 				this.showNotification();
 				this.stopMonitoring();
 			}
 		},
-		
+
 		// 显示通知
 		showNotification: function() {
 			// 防止重复显示通知
@@ -2437,16 +2435,16 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 				console.log('通知已经显示过，跳过重复显示');
 				return;
 			}
-			
+
 			console.log('显示缓存完成通知');
 			this.notificationShown = true;
-			
+
 			// 移除进度指示器
 			const indicator = document.getElementById('video-cache-indicator');
 			if (indicator) {
 				indicator.remove();
 			}
-			
+
 			// 创建桌面通知
 			if ("Notification" in window && Notification.permission === "granted") {
 				new Notification("视频缓存完成", {
@@ -2454,24 +2452,24 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 					icon: window.__wx_channels_store__?.profile?.coverUrl
 				});
 			}
-			
+
 			// 在页面上显示通知
 			const notification = document.createElement('div');
 			notification.style.cssText = "position:fixed;bottom:20px;right:20px;background-color:rgba(0,128,0,0.9);color:white;padding:15px 25px;border-radius:8px;z-index:99999;animation:fadeInOut 12s forwards;box-shadow:0 4px 12px rgba(0,0,0,0.3);font-size:16px;font-weight:bold;";
 			notification.innerHTML = '<div style="display:flex;align-items:center;"><span style="font-size:24px;margin-right:12px;">🎉</span> <span>视频缓存完成，可以下载了！</span></div>';
-			
+
 			// 添加动画样式 - 延长显示时间到12秒
 			const style = document.createElement('style');
 			style.textContent = '@keyframes fadeInOut {0% {opacity:0;transform:translateY(20px);} 8% {opacity:1;transform:translateY(0);} 85% {opacity:1;} 100% {opacity:0;}}';
 			document.head.appendChild(style);
-			
+
 			document.body.appendChild(notification);
-			
+
 			// 12秒后移除通知
 			setTimeout(() => {
 				notification.remove();
 			}, 12000);
-			
+
 			// 发送通知事件
 			fetch("/__wx_channels_api/tip", {
 				method: "POST",
@@ -2482,10 +2480,10 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 					msg: "视频缓存完成，可以下载了！"
 				})
 			});
-			
+
 			console.log("视频缓存完成通知已显示");
 		},
-		
+
 		// 停止监控
 		stopMonitoring: function() {
 			console.log('停止视频缓存监控');
@@ -2497,7 +2495,7 @@ func (h *ScriptHandler) getVideoCacheNotificationScript() string {
 			// 注意：不重置notificationShown，保持通知状态直到下次startMonitoring
 		}
 	};
-	
+
 	// 请求通知权限
 	if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
 		// 用户操作后再请求权限
@@ -2583,17 +2581,17 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 	profileListRegex := regexp.MustCompile(`async finderUserPage\((\w+)\)\{return(.*?)\}async`)
 	profileListReplace := `async finderUserPage($1) {
 		var profileResult = await$2;
-		
+
 		// 检查当前页面类型
-		var isProfilePage = window.location.pathname.includes('/pages/profile') && 
-		                    !window.location.pathname.includes('/pages/home') && 
+		var isProfilePage = window.location.pathname.includes('/pages/profile') &&
+		                    !window.location.pathname.includes('/pages/home') &&
 		                    !window.location.pathname.includes('/pages/feed');
-		
+
 		// 如果不是Profile页面，静默返回（不输出日志，不采集数据）
 		if (!isProfilePage) {
 			return profileResult;
 		}
-		
+
 		// HTML标签清理函数
 		var cleanHtmlTags = function(text) {
 			if (!text || typeof text !== 'string') return text || '';
@@ -2616,18 +2614,18 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 			cleaned = cleaned.replace(/&[a-zA-Z0-9#]+;/g, '');
 			return cleaned.trim();
 		};
-		
+
 			// Profile页面视频列表数据采集
 			if (profileResult && profileResult.data && profileResult.data.object) {
 				var videoCount = profileResult.data.object.length;
-				
+
 				// 发送日志到后端终端
 				fetch('/__wx_channels_api/tip', {
 					method: 'POST',
 					headers: {'Content-Type': 'application/json'},
 					body: JSON.stringify({msg: '📊 [API拦截] 获取到当前页数据列表，数量: ' + videoCount})
 				}).catch(() => {});
-			
+
 			// 处理视频列表中的每个视频（finderUserPage只处理普通视频和图片，不处理直播回放）
 			var videoCount = 0;
 			var pictureCount = 0;
@@ -2637,10 +2635,10 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 					if (!data_object || !data_object.objectDesc) {
 						return;
 					}
-					
+
 					var media = data_object.objectDesc.media[0];
 					if (!media) return;
-					
+
 					var profile;
 					// finderUserPage只处理普通视频和图片，直播回放由finderLiveUserPage专门处理
 					if (media.mediaType !== 4) {
@@ -2701,7 +2699,7 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 							timestamp: Date.now()
 						};
 					}
-					
+
 				// 添加到profile采集器（使用等待机制）
 				(function(profileData) {
 					// 尝试立即添加
@@ -2727,20 +2725,20 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 						}, 100);
 					}
 				})(profile);
-				
+
 				// 同时添加到全局存储
 				if (window.__wx_channels_store__) {
 					window.__wx_channels_store__.profiles = window.__wx_channels_store__.profiles || [];
 					window.__wx_channels_store__.profiles.push(profile);
 				}
-					
+
 					// 采集完成后发送总结日志
 					if (index === profileResult.data.object.length - 1) {
 						var summaryMsg = '✅ [API拦截] 视频列表采集完成，共 ' + profileResult.data.object.length + ' 个项目';
 						if (videoCount > 0) summaryMsg += ' (视频: ' + videoCount;
 						if (pictureCount > 0) summaryMsg += (videoCount > 0 ? ', 图片: ' : ' (图片: ') + pictureCount;
 						if (videoCount > 0 || pictureCount > 0) summaryMsg += ')';
-						
+
 						fetch('/__wx_channels_api/tip', {
 							method: 'POST',
 							headers: {'Content-Type': 'application/json'},
@@ -2752,7 +2750,7 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 				}
 			});
 		}
-		
+
 		return profileResult;
 	}async`
 
@@ -2767,17 +2765,17 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 	liveListRegex := regexp.MustCompile(`async finderLiveUserPage\((\w+)\)\{return(.*?)\}async`)
 	liveListReplace := `async finderLiveUserPage($1) {
 		var liveResult = await$2;
-		
+
 		// 检查当前页面类型
-		var isProfilePage = window.location.pathname.includes('/pages/profile') && 
-		                    !window.location.pathname.includes('/pages/home') && 
+		var isProfilePage = window.location.pathname.includes('/pages/profile') &&
+		                    !window.location.pathname.includes('/pages/home') &&
 		                    !window.location.pathname.includes('/pages/feed');
-		
+
 		// 如果不是Profile页面，静默返回
 		if (!isProfilePage) {
 			return liveResult;
 		}
-		
+
 		// HTML标签清理函数
 		var cleanHtmlTags = function(text) {
 			if (!text || typeof text !== 'string') return text || '';
@@ -2800,18 +2798,18 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 			cleaned = cleaned.replace(/&[a-zA-Z0-9#]+;/g, '');
 			return cleaned.trim();
 		};
-		
+
 		// 直播回放列表数据采集
 		if (liveResult && liveResult.data && liveResult.data.object) {
 			var liveCount = liveResult.data.object.length;
-			
+
 			// 发送日志到后端终端
 			fetch('/__wx_channels_api/tip', {
 				method: 'POST',
 				headers: {'Content-Type': 'application/json'},
 				body: JSON.stringify({msg: '📺 [API拦截] 获取到直播回放列表，数量: ' + liveCount})
 			}).catch(() => {});
-			
+
 			// 处理直播回放列表中的每个项目
 			liveResult.data.object.forEach((item, index) => {
 				try {
@@ -2819,10 +2817,10 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 					if (!data_object || !data_object.objectDesc) {
 						return;
 					}
-					
+
 					var media = data_object.objectDesc.media && data_object.objectDesc.media.length > 0 ? data_object.objectDesc.media[0] : null;
 					var liveInfo = data_object.liveInfo || {};
-					
+
 					// 检查是否有其他直播相关字段
 					var replayUrl = '';
 					if (liveInfo && liveInfo.replayUrl) {
@@ -2830,7 +2828,7 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 					} else if (media) {
 						replayUrl = media.liveReplayUrl || media.replayUrl || media.liveStreamUrl || '';
 					}
-					
+
 					// 构建直播回放数据（与普通视频结构保持一致，但type为live_replay）
 					var profile = {
 						type: "live_replay",
@@ -2877,7 +2875,7 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 						extInfo: data_object.extInfo || {},
 						timestamp: Date.now()
 					};
-					
+
 					// 添加到profile采集器（使用等待机制）
 					(function(profileData) {
 						if (window.__wx_channels_profile_collector) {
@@ -2898,13 +2896,13 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 							}, 100);
 						}
 					})(profile);
-					
+
 					// 同时添加到全局存储
 					if (window.__wx_channels_store__) {
 						window.__wx_channels_store__.profiles = window.__wx_channels_store__.profiles || [];
 						window.__wx_channels_store__.profiles.push(profile);
 					}
-					
+
 					// 采集完成后发送总结日志
 					if (index === liveResult.data.object.length - 1) {
 						var summaryMsg = '✅ [API拦截] 直播回放列表采集完成，共 ' + liveResult.data.object.length + ' 个直播回放';
@@ -2919,7 +2917,7 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 				}
 			});
 		}
-		
+
 		return liveResult;
 	}async`
 
@@ -2937,10 +2935,10 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 		if (!data_object.objectDesc) {
 			return feedResult;
 		}
-		
+
 		// 不再输出调试信息
 		// console.log("原始视频数据对象:", data_object);
-		
+
 		var media = data_object.objectDesc.media[0];
 		var profile = media.mediaType !== 4 ? {
 			type: "picture",
@@ -2979,7 +2977,7 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 			// IP区域信息
 			ipRegionInfo: data_object.ipRegionInfo || {}
 		};
-		
+
 		// 如果存在对象扩展信息，添加到profile
 		if (data_object.objectExtend && data_object.objectExtend.monotonicData) {
 			const monotonicData = data_object.objectExtend.monotonicData;
@@ -2991,7 +2989,7 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 				profile.forwardCount = monotonicData.countInfo.forwardCount || profile.forwardCount;
 			}
 		}
-		
+
 		fetch("/__wx_channels_api/profile", {
 			method: "POST",
 			headers: {
@@ -3002,7 +3000,7 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 		if (window.__wx_channels_store__) {
 		__wx_channels_store__.profile = profile;
 		window.__wx_channels_store__.profiles.push(profile);
-		
+
 		// 启动视频缓存监控
 		if (window.__wx_channels_video_cache_monitor && profile.type === "media" && profile.size) {
 			console.log("正在初始化视频缓存监控系统...");
@@ -3012,7 +3010,7 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 				// 确保Video.js播放器已经加载
 				const vjsPlayer = document.querySelector('.video-js');
 				const video = vjsPlayer ? vjsPlayer.querySelector('video') : document.querySelector('video');
-				
+
 				if (video) {
 					console.log("找到视频元素，启动缓存监控");
 					console.log("视频readyState:", video.readyState);
@@ -3042,10 +3040,10 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 		if (Object.keys(o).length===0){
 		return;
 		}
-		
+
 		// 不再输出调试信息
 		// console.log("updateDetail原始数据:", o);
-		
+
 		var data_object = o;
 		var media = data_object.objectDesc.media[0];
 		var profile = media.mediaType !== 4 ? {
@@ -3085,7 +3083,7 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 			// IP区域信息
 			ipRegionInfo: data_object.ipRegionInfo || {}
 		};
-		
+
 		// 如果存在对象扩展信息，添加到profile
 		if (data_object.objectExtend && data_object.objectExtend.monotonicData) {
 			const monotonicData = data_object.objectExtend.monotonicData;
@@ -3097,7 +3095,7 @@ func (h *ScriptHandler) handleVirtualSvgIcons(path string, content string) (stri
 				profile.forwardCount = monotonicData.countInfo.forwardCount || profile.forwardCount;
 			}
 		}
-		
+
 		if (window.__wx_channels_store__) {
 	window.__wx_channels_store__.profiles.push(profile);
 		}
@@ -3137,7 +3135,7 @@ func (h *ScriptHandler) handleWorkerRelease(path string, content string) (string
 }
 
 // handleVuexStores 处理vuexStores.publish JS文件
-func (h *ScriptHandler) handleVuexStores(Conn *SunnyNet.HttpConn, path string, content string) (string, bool) {
+func (h *ScriptHandler) handleVuexStores(Conn SunnyNet.ConnHTTP, path string, content string) (string, bool) {
 	if !util.Includes(path, "vuexStores.publish") {
 		return content, false
 	}
@@ -3171,16 +3169,16 @@ func (h *ScriptHandler) handleVuexStores(Conn *SunnyNet.HttpConn, path string, c
 	}
 
 	// 禁用浏览器缓存，确保每次都能拦截到最新的代码
-	Conn.Response.Header.Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	Conn.Response.Header.Set("Pragma", "no-cache")
-	Conn.Response.Header.Set("Expires", "0")
+	Conn.GetResponseHeader().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	Conn.GetResponseHeader().Set("Pragma", "no-cache")
+	Conn.GetResponseHeader().Set("Expires", "0")
 
-	Conn.Response.Body = io.NopCloser(bytes.NewBuffer([]byte(content)))
+	Conn.SetResponseBody([]byte(content))
 	return content, true
 }
 
 // handleGlobalPublish 处理global.publish JS文件
-func (h *ScriptHandler) handleGlobalPublish(Conn *SunnyNet.HttpConn, path string, content string) (string, bool) {
+func (h *ScriptHandler) handleGlobalPublish(Conn SunnyNet.ConnHTTP, path string, content string) (string, bool) {
 	if !util.Includes(path, "global.publish") {
 		return content, false
 	}
@@ -3214,16 +3212,16 @@ func (h *ScriptHandler) handleGlobalPublish(Conn *SunnyNet.HttpConn, path string
 	}
 
 	// 禁用浏览器缓存，确保每次都能拦截到最新的代码
-	Conn.Response.Header.Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	Conn.Response.Header.Set("Pragma", "no-cache")
-	Conn.Response.Header.Set("Expires", "0")
+	Conn.GetResponseHeader().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	Conn.GetResponseHeader().Set("Pragma", "no-cache")
+	Conn.GetResponseHeader().Set("Expires", "0")
 
-	Conn.Response.Body = io.NopCloser(bytes.NewBuffer([]byte(content)))
+	Conn.SetResponseBody([]byte(content))
 	return content, true
 }
 
 // handleConnectPublish 处理connect.publish JS文件（可能是新的vuexStores）
-func (h *ScriptHandler) handleConnectPublish(Conn *SunnyNet.HttpConn, path string, content string) (string, bool) {
+func (h *ScriptHandler) handleConnectPublish(Conn SunnyNet.ConnHTTP, path string, content string) (string, bool) {
 	if !util.Includes(path, "connect.publish") {
 		return content, false
 	}
@@ -3260,16 +3258,16 @@ func (h *ScriptHandler) handleConnectPublish(Conn *SunnyNet.HttpConn, path strin
 	}
 
 	// 禁用浏览器缓存，确保每次都能拦截到最新的代码
-	Conn.Response.Header.Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	Conn.Response.Header.Set("Pragma", "no-cache")
-	Conn.Response.Header.Set("Expires", "0")
+	Conn.GetResponseHeader().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	Conn.GetResponseHeader().Set("Pragma", "no-cache")
+	Conn.GetResponseHeader().Set("Expires", "0")
 
-	Conn.Response.Body = io.NopCloser(bytes.NewBuffer([]byte(content)))
+	Conn.SetResponseBody([]byte(content))
 	return content, true
 }
 
 // handleFinderHomePublish 处理FinderHome.publish JS文件（Home页面主逻辑）
-func (h *ScriptHandler) handleFinderHomePublish(Conn *SunnyNet.HttpConn, path string, content string) (string, bool) {
+func (h *ScriptHandler) handleFinderHomePublish(Conn SunnyNet.ConnHTTP, path string, content string) (string, bool) {
 	if !util.Includes(path, "FinderHome.publish") {
 		return content, false
 	}
@@ -3303,11 +3301,11 @@ func (h *ScriptHandler) handleFinderHomePublish(Conn *SunnyNet.HttpConn, path st
 	}
 
 	// 禁用浏览器缓存，确保每次都能拦截到最新的代码
-	Conn.Response.Header.Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	Conn.Response.Header.Set("Pragma", "no-cache")
-	Conn.Response.Header.Set("Expires", "0")
+	Conn.GetResponseHeader().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	Conn.GetResponseHeader().Set("Pragma", "no-cache")
+	Conn.GetResponseHeader().Set("Expires", "0")
 
-	Conn.Response.Body = io.NopCloser(bytes.NewBuffer([]byte(content)))
+	Conn.SetResponseBody([]byte(content))
 	return content, true
 }
 
@@ -3316,69 +3314,69 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 	return `<script>
 (function() {
 	'use strict';
-	
+
 	console.log('[评论采集] 初始化评论采集系统...');
-	
+
 	// 保存评论数据的函数
 	function saveCommentData(comments, options) {
 		if (!comments || comments.length === 0) {
 			console.log('[评论采集] 没有评论数据，跳过保存');
 			return;
 		}
-		
+
 		options = options || {};
-		
+
 		// 去重处理：移除重复的二级回复
 		var deduplicatedComments = [];
 		var totalLevel2Before = 0;
 		var totalLevel2After = 0;
-		
+
 		for (var i = 0; i < comments.length; i++) {
 			var comment = JSON.parse(JSON.stringify(comments[i])); // 深拷贝
-			
+
 			if (comment.levelTwoComment && Array.isArray(comment.levelTwoComment)) {
 				totalLevel2Before += comment.levelTwoComment.length;
-				
+
 				// 使用commentId去重
 				var seenIds = {};
 				var uniqueReplies = [];
-				
+
 				for (var j = 0; j < comment.levelTwoComment.length; j++) {
 					var reply = comment.levelTwoComment[j];
 					var replyId = reply.commentId;
-					
+
 					if (!seenIds[replyId]) {
 						seenIds[replyId] = true;
 						uniqueReplies.push(reply);
 					}
 				}
-				
+
 				comment.levelTwoComment = uniqueReplies;
 				totalLevel2After += uniqueReplies.length;
 			}
-			
+
 			deduplicatedComments.push(comment);
 		}
-		
+
 		// 如果有重复，输出日志
 		if (totalLevel2Before > totalLevel2After) {
 			console.log('[评论采集] 🔧 去重: 二级回复从 ' + totalLevel2Before + ' 条减少到 ' + totalLevel2After + ' 条 (移除 ' + (totalLevel2Before - totalLevel2After) + ' 条重复)');
 		}
-		
+
 		// 计算实际总评论数（一级 + 二级）
 		var actualTotalComments = deduplicatedComments.length + totalLevel2After;
-		
+
 		// 获取视频信息
 		var videoId = '';
 		var videoTitle = '';
-		
+
 		// 尝试从当前profile获取视频信息
 		if (window.__wx_channels_store__ && window.__wx_channels_store__.profile) {
 			var profile = window.__wx_channels_store__.profile;
 			videoId = profile.id || profile.nonce_id || '';
 			videoTitle = profile.title || '';
 		}
-		
+
 		// 如果没有从store获取到，尝试从options获取
 		if (!videoId && options.videoId) {
 			videoId = options.videoId;
@@ -3386,7 +3384,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 		if (!videoTitle && options.videoTitle) {
 			videoTitle = options.videoTitle;
 		}
-		
+
 		console.log('[评论采集] 准备保存评论数据:', {
 			videoId: videoId,
 			videoTitle: videoTitle,
@@ -3395,7 +3393,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 			level2Count: totalLevel2After,
 			source: options.source || 'unknown'
 		});
-		
+
 		// 获取原始评论数（从视频信息中）
 		var originalCommentCount = 0;
 		if (options.totalCount) {
@@ -3403,7 +3401,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 		} else if (window.__wx_channels_store__ && window.__wx_channels_store__.profile) {
 			originalCommentCount = window.__wx_channels_store__.profile.commentCount || 0;
 		}
-		
+
 		// 发送评论数据到后端保存（使用去重后的数据）
 		fetch('/__wx_channels_api/save_comment_data', {
 			method: 'POST',
@@ -3418,7 +3416,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 		}).then(function(response) {
 			if (response.ok) {
 				console.log('[评论采集] ✓ 评论数据已保存到后端');
-				
+
 				// 保存成功后返回页面顶部（如果options中指定）
 				if (options.scrollToTop !== false) {
 					console.log('[评论采集] 📤 返回页面顶部');
@@ -3432,10 +3430,10 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 								'[class*="comment"]',
 								'[class*="Comment"]'
 							];
-							
+
 							var firstComment = null;
 							var comments = null;
-							
+
 							// 尝试所有选择器找到评论
 							for (var i = 0; i < commentSelectors.length; i++) {
 								comments = document.querySelectorAll(commentSelectors[i]);
@@ -3445,7 +3443,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 									break;
 								}
 							}
-							
+
 							if (firstComment) {
 								// 使用 scrollIntoView 滚动到第一个评论（与向下滚动相同的方法）
 								console.log('[评论采集] ✓ 找到评论，使用 scrollIntoView 滚动到顶部');
@@ -3459,7 +3457,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 								console.log('[评论采集] ⚠️ 未找到评论元素，使用标准方式滚动');
 								window.scrollTo({ top: 0, behavior: 'smooth' });
 							}
-							
+
 							console.log('[评论采集] ✓ 已执行返回顶部操作');
 						} catch (e) {
 							console.error('[评论采集] 返回顶部失败:', e);
@@ -3473,10 +3471,10 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 			console.error('[评论采集] ✗ 保存评论数据出错:', error);
 		});
 	}
-	
+
 	// 将保存函数暴露到全局，供其他脚本使用
 	window.__wx_channels_save_comment_data = saveCommentData;
-	
+
 	// 监控评论数据的变化
 	var lastCommentSignature = '';
 	var commentCheckInterval = null;
@@ -3489,7 +3487,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 	var autoScrollEnabled = false; // 是否启用自动滚动
 	var autoScrollInterval = null; // 自动滚动定时器
 	var noChangeCount = 0; // 评论数量未变化的次数
-	
+
 	function getCommentSignature(comments) {
 		if (!comments || comments.length === 0) return '';
 		// 使用评论数量和第一条、最后一条评论的ID生成签名
@@ -3497,7 +3495,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 		var lastId = comments[comments.length - 1].id || comments[comments.length - 1].commentId || '';
 		return comments.length + '_' + firstId + '_' + lastId;
 	}
-	
+
 	// 获取详细的评论统计信息
 	function getCommentStats() {
 		try {
@@ -3508,14 +3506,14 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				if (vueInstance) {
 					var componentInstance = vueInstance.component || vueInstance;
 					if (componentInstance) {
-						var appContext = componentInstance.appContext || 
+						var appContext = componentInstance.appContext ||
 						                 (componentInstance.ctx && componentInstance.ctx.appContext);
-						
+
 						if (appContext && appContext.config && appContext.config.globalProperties) {
 							if (appContext.config.globalProperties.$pinia) {
 								var pinia = appContext.config.globalProperties.$pinia;
 								var feedStore = null;
-								
+
 								if (pinia._s && pinia._s.feed) {
 									feedStore = pinia._s.feed;
 								} else if (pinia._s && pinia._s.get && typeof pinia._s.get === 'function') {
@@ -3523,14 +3521,14 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 								} else if (pinia.state && pinia.state._value && pinia.state._value.feed) {
 									feedStore = pinia.state._value.feed;
 								}
-								
+
 								if (feedStore) {
 									var commentList = feedStore.commentList || (feedStore.feed && feedStore.feed.commentList);
 									if (commentList && commentList.dataList && commentList.dataList.items) {
 										var items = commentList.dataList.items;
 										var level1Count = items.length; // 一级评论数量
 										var level2Count = 0; // 二级回复数量
-										
+
 										// 统计二级回复数量
 										for (var j = 0; j < items.length; j++) {
 											var item = items[j];
@@ -3538,7 +3536,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 												level2Count += item.levelTwoComment.length;
 											}
 										}
-										
+
 										return {
 											level1: level1Count,
 											level2: level2Count,
@@ -3556,7 +3554,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 		}
 		return { level1: 0, level2: 0, total: 0 };
 	}
-	
+
 	// 获取当前评论数量（包括一级评论和二级回复）
 	function getCurrentCommentCount() {
 		try {
@@ -3567,14 +3565,14 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				if (vueInstance) {
 					var componentInstance = vueInstance.component || vueInstance;
 					if (componentInstance) {
-						var appContext = componentInstance.appContext || 
+						var appContext = componentInstance.appContext ||
 						                 (componentInstance.ctx && componentInstance.ctx.appContext);
-						
+
 						if (appContext && appContext.config && appContext.config.globalProperties) {
 							if (appContext.config.globalProperties.$pinia) {
 								var pinia = appContext.config.globalProperties.$pinia;
 								var feedStore = null;
-								
+
 								if (pinia._s && pinia._s.feed) {
 									feedStore = pinia._s.feed;
 								} else if (pinia._s && pinia._s.get && typeof pinia._s.get === 'function') {
@@ -3582,13 +3580,13 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 								} else if (pinia.state && pinia.state._value && pinia.state._value.feed) {
 									feedStore = pinia.state._value.feed;
 								}
-								
+
 								if (feedStore) {
 									var commentList = feedStore.commentList || (feedStore.feed && feedStore.feed.commentList);
 									if (commentList && commentList.dataList && commentList.dataList.items) {
 										var items = commentList.dataList.items;
 										var totalCount = items.length; // 一级评论数量
-										
+
 										// 统计二级回复数量
 										for (var j = 0; j < items.length; j++) {
 											var item = items[j];
@@ -3597,7 +3595,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 												totalCount += item.levelTwoComment.length;
 											}
 										}
-										
+
 										return totalCount;
 									}
 								}
@@ -3611,7 +3609,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 		}
 		return 0;
 	}
-	
+
 	// 验证二级评论完整性：检查实际采集的二级评论数量是否与expandCommentCount一致
 	function verifySecondaryCommentCompleteness() {
 		try {
@@ -3622,14 +3620,14 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				if (vueInstance) {
 					var componentInstance = vueInstance.component || vueInstance;
 					if (componentInstance) {
-						var appContext = componentInstance.appContext || 
+						var appContext = componentInstance.appContext ||
 						                 (componentInstance.ctx && componentInstance.ctx.appContext);
-						
+
 						if (appContext && appContext.config && appContext.config.globalProperties) {
 							if (appContext.config.globalProperties.$pinia) {
 								var pinia = appContext.config.globalProperties.$pinia;
 								var feedStore = null;
-								
+
 								if (pinia._s && pinia._s.feed) {
 									feedStore = pinia._s.feed;
 								} else if (pinia._s && pinia._s.get && typeof pinia._s.get === 'function') {
@@ -3637,7 +3635,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 								} else if (pinia.state && pinia.state._value && pinia.state._value.feed) {
 									feedStore = pinia.state._value.feed;
 								}
-								
+
 								if (feedStore) {
 									var commentList = feedStore.commentList || (feedStore.feed && feedStore.feed.commentList);
 									if (commentList && commentList.dataList && commentList.dataList.items) {
@@ -3645,16 +3643,16 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 										var totalExpected = 0; // 预期的二级评论总数
 										var totalActual = 0;   // 实际采集的二级评论总数
 										var incompleteComments = []; // 不完整的评论列表
-										
+
 										// 检查每条一级评论
 										for (var j = 0; j < items.length; j++) {
 											var item = items[j];
 											var expected = item.expandCommentCount || 0;
 											var actual = (item.levelTwoComment && Array.isArray(item.levelTwoComment)) ? item.levelTwoComment.length : 0;
-											
+
 											totalExpected += expected;
 											totalActual += actual;
-											
+
 											// 如果实际数量少于预期数量，记录下来
 											if (expected > 0 && actual < expected) {
 												incompleteComments.push({
@@ -3666,7 +3664,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 												});
 											}
 										}
-										
+
 										return {
 											totalExpected: totalExpected,
 											totalActual: totalActual,
@@ -3692,27 +3690,27 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 			completeness: 100
 		};
 	}
-	
+
 	// 查找评论滚动容器
 	function findCommentScrollContainer() {
 		var scrollableContainers = [];
-		
+
 		// 查找所有可滚动的元素
 		function findScrollableElements(element, depth) {
 			if (!element || depth > 10) {
 				return;
 			}
-			
+
 			// 跳过 body 和 html，稍后单独处理
 			if (element === document.body || element === document.documentElement) {
 				return;
 			}
-			
+
 			var style = window.getComputedStyle(element);
 			var overflowY = style.overflowY || style.overflow;
 			var hasScrollStyle = (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay');
 			var hasScroll = hasScrollStyle && element.scrollHeight > element.clientHeight + 5; // 5px容差
-			
+
 			if (hasScroll) {
 				// 检查是否包含评论项
 				var commentItems = element.querySelectorAll('[class*="comment"], [class*="Comment"]');
@@ -3727,21 +3725,21 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 						className: element.className || '',
 						id: element.id || ''
 					});
-					console.log('[评论采集] 发现可滚动容器:', element.tagName, element.className || element.id || '', 
-					           '评论数:', commentItems.length, 
+					console.log('[评论采集] 发现可滚动容器:', element.tagName, element.className || element.id || '',
+					           '评论数:', commentItems.length,
 					           '可滚动高度:', scrollableHeight + 'px');
 				}
 			}
-			
+
 			// 递归查找子元素
 			for (var i = 0; i < element.children.length; i++) {
 				findScrollableElements(element.children[i], depth + 1);
 			}
 		}
-		
+
 		// 从 body 开始查找
 		findScrollableElements(document.body, 0);
-		
+
 		// 如果找到可滚动的容器，选择可滚动高度最大且包含评论的
 		if (scrollableContainers.length > 0) {
 			// 优先选择可滚动高度最大的容器
@@ -3753,15 +3751,15 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				// 如果可滚动高度相近，按评论数量排序
 				return b.commentCount - a.commentCount;
 			});
-			
+
 			var bestContainer = scrollableContainers[0].element;
-			console.log('[评论采集] ✓ 选择最佳滚动容器:', bestContainer.tagName, 
-			           bestContainer.className || bestContainer.id || '', 
+			console.log('[评论采集] ✓ 选择最佳滚动容器:', bestContainer.tagName,
+			           bestContainer.className || bestContainer.id || '',
 			           '包含', scrollableContainers[0].commentCount, '个评论项',
 			           '可滚动高度:', scrollableContainers[0].scrollableHeight + 'px');
 			return bestContainer;
 		}
-		
+
 		// 检查页面本身是否可滚动
 		var bodyScrollHeight = Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
 		var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
@@ -3769,16 +3767,16 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 			console.log('[评论采集] 使用页面滚动 (window/body), 可滚动高度:', (bodyScrollHeight - viewportHeight) + 'px');
 			return document.body;
 		}
-		
+
 		// 如果都不可滚动，仍然返回body，但给出警告
 		console.warn('[评论采集] ⚠️ 未找到可滚动容器，使用body作为默认容器');
 		return document.body;
 	}
-	
+
 	// 强制滚动到容器底部（不使用 smooth，立即执行）
 	function scrollToBottom(container) {
 		if (!container) return;
-		
+
 		// 如果是 body 或 html，使用 window.scrollTo
 		if (container === document.body || container === document.documentElement) {
 			// 获取页面最大滚动高度
@@ -3788,19 +3786,19 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				document.body.offsetHeight,
 				document.documentElement.offsetHeight
 			);
-			
+
 			// 立即滚动（不使用 smooth）
 			window.scrollTo(0, maxScroll);
 			document.documentElement.scrollTop = maxScroll;
 			document.body.scrollTop = maxScroll;
-			
+
 			// 多次尝试确保滚动成功
 			setTimeout(function() {
 				window.scrollTo(0, maxScroll);
 				document.documentElement.scrollTop = maxScroll;
 				document.body.scrollTop = maxScroll;
 			}, 50);
-			
+
 			setTimeout(function() {
 				window.scrollTo(0, maxScroll);
 				document.documentElement.scrollTop = maxScroll;
@@ -3810,22 +3808,22 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 			// 滚动容器本身
 			var maxScroll = container.scrollHeight - container.clientHeight;
 			container.scrollTop = maxScroll;
-			
+
 			// 多次尝试确保滚动成功
 			setTimeout(function() {
 				container.scrollTop = maxScroll;
 			}, 50);
-			
+
 			setTimeout(function() {
 				container.scrollTop = maxScroll;
 			}, 200);
 		}
 	}
-	
+
 	// 缓存评论选择器，避免重复查询
 	var cachedCommentSelector = null;
 	var lastCommentElementCount = 0; // 记录上次找到的评论元素数量
-	
+
 	// 尝试找到评论列表的最后一个元素并滚动到它（优化版）
 	function scrollToLastComment() {
 		// 尝试多种选择器找到评论项
@@ -3835,11 +3833,11 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 			'[class*="comment"]',
 			'[class*="Comment"]'
 		];
-		
+
 		var lastComment = null;
 		var comments = null;
 		var selector = null;
-		
+
 		// 如果之前找到过选择器，优先使用缓存的选择器
 		if (cachedCommentSelector) {
 			comments = document.querySelectorAll(cachedCommentSelector);
@@ -3847,7 +3845,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				selector = cachedCommentSelector;
 			}
 		}
-		
+
 		// 如果缓存的选择器无效，尝试所有选择器
 		if (!comments || comments.length === 0) {
 			for (var i = 0; i < commentSelectors.length; i++) {
@@ -3859,32 +3857,32 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				}
 			}
 		}
-		
+
 		if (comments && comments.length > 0) {
 			lastComment = comments[comments.length - 1];
-			
+
 			// 只在评论数量变化时输出日志（减少日志量）
 			if (comments.length !== lastCommentElementCount) {
 				console.log('[评论采集] 找到评论项:', comments.length, '个，滚动到最后一个');
 				lastCommentElementCount = comments.length;
 			}
-			
+
 			// 检查最后一个评论是否已经在视口内（避免不必要的滚动）
 			var rect = lastComment.getBoundingClientRect();
 			var viewportHeight = window.innerHeight || document.documentElement.clientHeight;
 			var isVisible = rect.top >= 0 && rect.top < viewportHeight;
-			
+
 			// 如果最后一个评论已经在视口内，滚动到稍微下面一点以触发加载
 			if (isVisible) {
 				// 滚动到稍微下面一点，确保触发加载更多（增加滚动距离）
 				var scrollY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
 				var targetScroll = scrollY + rect.bottom + 500; // 增加滚动距离到500px，确保触发加载
-				
+
 				// 多次尝试滚动，确保生效
 				window.scrollTo(0, targetScroll);
 				document.documentElement.scrollTop = targetScroll;
 				document.body.scrollTop = targetScroll;
-				
+
 				// 延迟再次滚动，确保生效
 				setTimeout(function() {
 					window.scrollTo(0, targetScroll);
@@ -3899,18 +3897,18 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 					// 如果不支持参数，使用默认方式
 					lastComment.scrollIntoView(false);
 				}
-				
+
 				// 滚动后再稍微向下滚动一点，确保触发加载（增加滚动距离）
 				setTimeout(function() {
 					var rect2 = lastComment.getBoundingClientRect();
 					var scrollY2 = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
 					var targetScroll2 = scrollY2 + rect2.bottom + 500; // 增加滚动距离到500px
-					
+
 					// 多次尝试滚动，确保生效
 					window.scrollTo(0, targetScroll2);
 					document.documentElement.scrollTop = targetScroll2;
 					document.body.scrollTop = targetScroll2;
-					
+
 					// 再次延迟滚动
 					setTimeout(function() {
 						window.scrollTo(0, targetScroll2);
@@ -3919,17 +3917,17 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 					}, 100);
 				}, 100);
 			}
-			
+
 			return true;
 		}
-		
+
 		// 如果找不到评论，清除缓存
 		cachedCommentSelector = null;
 		lastCommentElementCount = 0;
-		
+
 		return false;
 	}
-	
+
 	// 尝试直接调用 Vue Store 的加载更多方法
 	function tryLoadMoreComments() {
 		try {
@@ -3940,14 +3938,14 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				if (vueInstance) {
 					var componentInstance = vueInstance.component || vueInstance;
 					if (componentInstance) {
-						var appContext = componentInstance.appContext || 
+						var appContext = componentInstance.appContext ||
 						                 (componentInstance.ctx && componentInstance.ctx.appContext);
-						
+
 						if (appContext && appContext.config && appContext.config.globalProperties) {
 							if (appContext.config.globalProperties.$pinia) {
 								var pinia = appContext.config.globalProperties.$pinia;
 								var feedStore = null;
-								
+
 								if (pinia._s && pinia._s.feed) {
 									feedStore = pinia._s.feed;
 								} else if (pinia._s && pinia._s.get && typeof pinia._s.get === 'function') {
@@ -3955,7 +3953,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 								} else if (pinia.state && pinia.state._value && pinia.state._value.feed) {
 									feedStore = pinia.state._value.feed;
 								}
-								
+
 								if (feedStore) {
 									var commentList = feedStore.commentList || (feedStore.feed && feedStore.feed.commentList);
 									if (commentList) {
@@ -3972,7 +3970,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 												}
 											}
 										}
-										
+
 										// 尝试调用 feedStore 的方法
 										for (var j = 0; j < methods.length; j++) {
 											if (typeof feedStore[methods[j]] === 'function') {
@@ -3995,39 +3993,39 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 		} catch (e) {
 			console.log('[评论采集] 尝试调用加载方法失败:', e.message);
 		}
-		
+
 		return false;
 	}
-	
+
 	// 自动加载所有评论 - 通过滚动触发加载
 	function startAutoScroll(totalCount) {
 		if (autoScrollEnabled) {
 			console.log('[评论采集] 自动加载已在运行中');
 			return;
 		}
-		
+
 		autoScrollEnabled = true;
 		noChangeCount = 0;
 		var loadAttempts = 0;
 		var maxLoadAttempts = 200; // 最多尝试200次（约10分钟）
 		var lastCount = getCurrentCommentCount();
 		lastCommentCount = lastCount;
-		
+
 		// 初始化时输出当前状态
 		if (lastCount > 0) {
 			console.log('[评论采集] 初始评论数: ' + lastCount);
 		}
-		
+
 		console.log('[评论采集] 🚀 开始自动滚动加载评论');
 		var initialStats = getCommentStats();
 		console.log('[评论采集] 当前评论数: ' + lastCount + ' (一级:' + initialStats.level1 + ' + 二级:' + initialStats.level2 + ')');
 		if (totalCount > 0) {
 			console.log('[评论采集] 目标评论数: ' + totalCount);
 		}
-		
+
 		// 查找评论滚动容器
 		var scrollContainer = findCommentScrollContainer();
-		
+
 		// 检查容器是否可滚动
 		var canScroll = false;
 		var scrollableHeight = 0;
@@ -4042,17 +4040,17 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 			canScroll = scrollableHeight > 5;
 			console.log('[评论采集] 容器滚动检查: 总高度=' + scrollContainer.scrollHeight + 'px, 可见=' + scrollContainer.clientHeight + 'px, 可滚动=' + scrollableHeight + 'px');
 		}
-		
+
 		if (!canScroll) {
 			console.warn('[评论采集] ⚠️ 警告: 容器不可滚动（可滚动高度=' + scrollableHeight + 'px），可能无法加载更多评论');
 			console.warn('[评论采集] ⚠️ 尝试使用替代方法加载评论...');
-			
+
 			// 如果容器不可滚动，尝试直接调用加载方法
 			var loadSuccess = tryLoadMoreComments();
 			if (!loadSuccess) {
 				// 如果调用失败，尝试模拟用户交互
 				console.log('[评论采集] 尝试模拟用户交互触发加载...');
-				
+
 				// 多次尝试点击按钮，因为点击后可能会出现新的按钮
 				var totalClicked = 0;
 				for (var attempt = 0; attempt < 3; attempt++) {
@@ -4068,18 +4066,18 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 						break; // 没有找到按钮，停止尝试
 					}
 				}
-				
+
 				if (totalClicked > 0) {
 					console.log('[评论采集] 完成', totalClicked, '轮按钮点击');
 				}
 			}
 		}
-		
+
 		// 查找并点击所有"加载更多"按钮
 		function clickAllLoadMoreButtons() {
 			var clickedCount = 0;
 			var clickedButtons = []; // 记录已点击的按钮，避免重复点击
-			
+
 			// 查找各种可能的"加载更多"按钮
 			var selectors = [
 				'[class*="load-more"]',
@@ -4096,27 +4094,27 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				'span[role="button"]',
 				'a'
 			];
-			
+
 			for (var s = 0; s < selectors.length; s++) {
 				var buttons = document.querySelectorAll(selectors[s]);
 				for (var i = 0; i < buttons.length; i++) {
 					var btn = buttons[i];
-					
+
 					// 避免重复点击
 					if (clickedButtons.indexOf(btn) !== -1) {
 						continue;
 					}
-					
+
 					var btnText = (btn.textContent || btn.innerText || '').trim();
-					
+
 					// 检查按钮文本是否包含加载更多的关键词
 					if (btnText && (
-						btnText.includes('更多') || 
-						btnText.includes('展开') || 
+						btnText.includes('更多') ||
+						btnText.includes('展开') ||
 						btnText.includes('加载') ||
 						btnText.includes('回复') ||
 						btnText.includes('条回复') ||
-						btnText.toLowerCase().includes('more') || 
+						btnText.toLowerCase().includes('more') ||
 						btnText.toLowerCase().includes('load') ||
 						btnText.toLowerCase().includes('expand') ||
 						btnText.toLowerCase().includes('show') ||
@@ -4126,7 +4124,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 						// 检查按钮是否可见
 						var rect = btn.getBoundingClientRect();
 						var isVisible = rect.width > 0 && rect.height > 0;
-						
+
 						if (isVisible) {
 							console.log('[评论采集] 找到加载按钮:', btnText.substring(0, 50));
 							try {
@@ -4134,7 +4132,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 								clickedButtons.push(btn);
 								clickedCount++;
 								console.log('[评论采集] ✓ 已点击按钮');
-								
+
 								// 点击后等待一小段时间，让DOM更新
 								// 注意：这里不能用setTimeout，因为函数是同步的
 							} catch (e) {
@@ -4144,21 +4142,21 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 					}
 				}
 			}
-			
+
 			if (clickedCount > 0) {
 				console.log('[评论采集] 共点击了', clickedCount, '个加载按钮');
 			} else {
 				console.log('[评论采集] 未找到可点击的加载按钮');
 			}
-			
+
 			return clickedCount > 0;
 		}
-		
+
 		// 展开所有二级评论（回复）的函数
 		function expandAllSecondaryComments() {
 			var expandedCount = 0;
 			var totalAttempts = 0;
-			
+
 			// 1. 找到所有一级评论容器
 			var commentSelectors = [
 				'[class*="comment-item"]',
@@ -4168,7 +4166,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				'[class*="comment"]',
 				'[class*="Comment"]'
 			];
-			
+
 			var commentItems = [];
 			for (var i = 0; i < commentSelectors.length; i++) {
 				var items = document.querySelectorAll(commentSelectors[i]);
@@ -4178,14 +4176,14 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 					break;
 				}
 			}
-			
+
 			if (commentItems.length === 0) {
 				console.log('[二级评论] 未找到评论容器');
 				return 0;
 			}
-			
+
 			console.log('[二级评论] 开始检查', commentItems.length, '个一级评论的回复按钮');
-			
+
 			// 调试：输出第一个评论的HTML结构（仅前500字符）
 			if (commentItems.length > 0) {
 				var firstItemHtml = commentItems[0].innerHTML;
@@ -4193,11 +4191,11 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 					console.log('[二级评论] 第一个评论的HTML片段:', firstItemHtml.substring(0, 500));
 				}
 			}
-			
+
 			// 2. 在每个一级评论中查找并点击回复按钮
 			for (var idx = 0; idx < commentItems.length; idx++) {
 				var item = commentItems[idx];
-				
+
 				// 查找回复按钮的多种可能选择器
 				var replyButtonSelectors = [
 					'[class*="reply-btn"]',
@@ -4215,7 +4213,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 					'span[role="button"]',
 					'a'
 				];
-				
+
 				// 调试：记录找到的所有按钮文本（仅第一个评论）
 				if (idx === 0) {
 					var debugButtons = [];
@@ -4234,20 +4232,20 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 						console.log('[二级评论] 第一个评论中未找到任何按钮');
 					}
 				}
-				
+
 				for (var s = 0; s < replyButtonSelectors.length; s++) {
 					var buttons = item.querySelectorAll(replyButtonSelectors[s]);
-					
+
 					for (var b = 0; b < buttons.length; b++) {
 						var btn = buttons[b];
 						var btnText = (btn.textContent || btn.innerText || '').trim();
-						
+
 						// 检查是否是回复相关按钮（更精确的匹配）
 						var isReplyButton = false;
 						if (btnText) {
 							// 清理文本：移除多余空格和换行符
 							var cleanText = btnText.replace(/\s+/g, ' ').trim();
-							
+
 							// 匹配"X条回复"、"查看回复"、"展开回复"等
 							if (cleanText.match(/\d+\s*条回复/) ||
 							    cleanText.match(/\d+\s*repl(y|ies)/i) ||
@@ -4263,16 +4261,16 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 							    (cleanText.toLowerCase().includes('expand') && cleanText.toLowerCase().includes('repl'))) {
 								isReplyButton = true;
 							}
-							
+
 							// 调试：输出未匹配的按钮（仅前3个评论）
 							if (!isReplyButton && idx < 3 && cleanText.length > 0 && cleanText.length < 50) {
 								console.log('[二级评论] 第', idx + 1, '个评论: 未匹配按钮 "' + cleanText + '"');
 							}
 						}
-						
+
 						if (isReplyButton) {
 							totalAttempts++;
-							
+
 							// 检查按钮是否可见
 							var rect = btn.getBoundingClientRect();
 							if (rect.width > 0 && rect.height > 0) {
@@ -4288,16 +4286,16 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 					}
 				}
 			}
-			
+
 			if (expandedCount > 0) {
 				console.log('[二级评论] ✓ 展开操作完成: 尝试', totalAttempts, '次, 成功', expandedCount, '次');
 			} else if (totalAttempts > 0) {
 				console.log('[二级评论] ⚠️ 找到', totalAttempts, '个回复按钮但都不可见');
 			}
-			
+
 			return expandedCount;
 		}
-		
+
 		// 多轮展开二级评论（异步版本，使用回调）
 		var isExpandingSecondaryComments = false;
 		function expandSecondaryCommentsInRounds(maxRounds, callback) {
@@ -4305,17 +4303,17 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				console.log('[二级评论] 已有展开任务在运行中');
 				return;
 			}
-			
+
 			isExpandingSecondaryComments = true;
 			var round = 0;
 			maxRounds = maxRounds || 3;
-			
+
 			function performRound() {
 				round++;
 				console.log('[二级评论] 🔄 开始第', round, '/', maxRounds, '轮展开...');
-				
+
 				var expandCount = expandAllSecondaryComments();
-				
+
 				// 等待DOM更新后继续下一轮
 				setTimeout(function() {
 					// 如果还有按钮被点击，或者还没达到最大轮数，继续下一轮
@@ -4328,27 +4326,27 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 					}
 				}, 1500); // 每轮之间等待1.5秒
 			}
-			
+
 			performRound();
 		}
-		
+
 		// 增量滚动距离（像素）
 		var scrollStep = 300; // 每次滚动300px（增加初始步长）
 		var lastScrollPosition = 0;
 		var isScrolling = false; // 防止并发滚动
 		var scrollThrottle = 0; // 滚动节流计数器
-		
+
 		// 增量滚动加载函数（优化版：每次滚动一小段，检查新数据，添加错误处理）
 		function performScrollLoad() {
 			// 防止并发执行
 			if (isScrolling) {
 				return;
 			}
-			
+
 			try {
 				loadAttempts++;
 				isScrolling = true;
-				
+
 				// 获取当前滚动位置
 				var currentScrollPos = 0;
 				var maxScroll = 0;
@@ -4365,7 +4363,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 					isScrolling = false;
 					return;
 				}
-				
+
 				// 记录当前评论数量（滚动前）
 				var countBeforeScroll = 0;
 				try {
@@ -4373,13 +4371,13 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				} catch (e) {
 					console.error('[评论采集] 获取评论数量失败:', e);
 				}
-				
+
 				// 优先使用滚动到最后一个评论的方法（这是最有效的方法）
 				var scrolledToComment = false;
 				try {
 					// 总是尝试滚动到最后一个评论（这个方法最有效）
 					scrolledToComment = scrollToLastComment();
-					
+
 					// 如果滚动到评论失败，尝试增量滚动
 					if (!scrolledToComment) {
 						var targetScrollPos = currentScrollPos + scrollStep;
@@ -4394,7 +4392,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				} catch (e) {
 					console.error('[评论采集] 滚动操作失败:', e);
 				}
-				
+
 				// 触发滚动事件（确保监听器被触发）
 				try {
 					var scrollEvent = new Event('scroll', { bubbles: true, cancelable: true });
@@ -4407,7 +4405,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				} catch (e) {
 					console.error('[评论采集] 触发滚动事件失败:', e);
 				}
-				
+
 				// 验证滚动是否生效（延迟检查）
 				setTimeout(function() {
 					try {
@@ -4417,7 +4415,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 						} else {
 							newScrollPos = scrollContainer.scrollTop;
 						}
-						
+
 						// 如果滚动位置没有变化，说明滚动可能无效，强制使用 scrollToLastComment
 						if (Math.abs(newScrollPos - currentScrollPos) < 10 && loadAttempts > 3) {
 							if (loadAttempts % 5 === 0) {
@@ -4429,24 +4427,24 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 						// 忽略错误
 					}
 				}, 100);
-			
+
 				// 只在第一次和每10次输出日志（减少日志量）
 				if (loadAttempts === 1 || loadAttempts % 10 === 0) {
 					var logTargetPos = scrolledToComment ? '滚动到评论' : (currentScrollPos + scrollStep);
 					console.log('[评论采集] 🔽 增量滚动 (第' + loadAttempts + '次) - 位置: ' + Math.round(currentScrollPos) + ' -> ' + (scrolledToComment ? '滚动到评论' : Math.round(currentScrollPos + scrollStep)));
 				}
-				
+
 				// 如果容器不可滚动且滚动位置没有变化，快速进入最终检查
 				if (!canScroll && loadAttempts >= 2) {
 					console.log('[评论采集] 容器不可滚动且已尝试' + loadAttempts + '次，快速进入最终检查');
 					noChangeCount = 20; // 直接设置为触发最终检查的阈值
 				}
-				
+
 				// 滚动后等待一段时间再检查评论数量（给页面时间加载新内容）
 				// 使用多次检查机制，确保捕获到数据变化
 				var checkDelay = 2500; // 增加到2.5秒
 				var recheckDelay = 1500; // 如果第一次没变化，1.5秒后再检查一次
-				
+
 				setTimeout(function() {
 					try {
 						// 第一次检查：获取当前评论数量（滚动后）
@@ -4459,14 +4457,14 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 							isScrolling = false;
 							return;
 						}
-						
+
 						// 如果第一次检查发现有新数据，立即处理
 						if (currentCount > countBeforeScroll) {
 							console.log('[评论采集] ✓ 第一次检查发现新数据: ' + countBeforeScroll + ' -> ' + currentCount);
 							handleCountChange(currentCount, countBeforeScroll);
 							return;
 						}
-						
+
 						// 如果第一次没有新数据，等待后再检查一次（可能数据还在加载中）
 						setTimeout(function() {
 							try {
@@ -4482,17 +4480,17 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 								handleCountChange(currentCount, countBeforeScroll);
 							}
 						}, recheckDelay);
-						
+
 					} catch (e) {
 						console.error('[评论采集] 滚动检查失败:', e);
 						isScrolling = false;
 					}
 				}, checkDelay);
-				
+
 				// 处理评论数量变化的函数
 				function handleCountChange(currentCount, countBeforeScroll) {
 					try {
-				
+
 						// 检查是否完成（允许1条误差）
 						if (totalCount > 0 && currentCount >= totalCount - 1) {
 							console.log('[评论采集] ✅ 已加载全部评论 (' + currentCount + '/' + totalCount + ')');
@@ -4500,7 +4498,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 							stopAutoScroll(true);
 							return;
 						}
-						
+
 						// 检查是否超时
 						if (loadAttempts > maxLoadAttempts) {
 							console.log('[评论采集] ⚠️ 达到最大尝试次数 (' + maxLoadAttempts + ')');
@@ -4511,10 +4509,10 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 							stopAutoScroll(true);
 							return;
 						}
-				
+
 						// 检查是否有新数据（与滚动前比较）
 						var hasNewData = currentCount > countBeforeScroll;
-						
+
 						// 检查评论数量变化（与上次记录比较）
 						if (currentCount !== lastCount) {
 							noChangeCount = 0;
@@ -4524,35 +4522,35 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 							var stats = getCommentStats();
 							console.log('[评论采集] 📊 进度: ' + currentCount + '/' + (totalCount || '?') + ' (' + progress + '%) - 新增: ' + newComments + ' (一级:' + stats.level1 + ' + 二级:' + stats.level2 + ')');
 							lastCount = currentCount;
-							
+
 							// 发现新数据，继续滚动（保持当前滚动距离）
 							scrollStep = 200; // 重置为默认值
 						} else {
 							// 没有新数据
 							noChangeCount++;
-							
+
 							// 如果连续多次无新数据，尝试直接调用加载方法和点击按钮
 							if (noChangeCount === 2 || noChangeCount === 5 || noChangeCount === 8) {
 								console.log('[评论采集] 尝试直接调用加载方法...');
 								tryLoadMoreComments();
-								
+
 								// 同时尝试点击加载更多按钮
 								console.log('[评论采集] 尝试点击加载更多按钮...');
 								clickAllLoadMoreButtons();
-								
+
 								// 尝试展开二级评论
 								if (noChangeCount === 5) {
 									console.log('[评论采集] 尝试展开二级评论...');
 									expandAllSecondaryComments();
 								}
 							}
-							
+
 							// 如果没有新数据，不要急于增加滚动距离，保持稳定
 							// 因为可能是数据还在加载中，而不是需要滚动更多
 							if (noChangeCount > 5 && scrollStep < 500) {
 								scrollStep = Math.min(scrollStep + 50, 500); // 缓慢增加滚动距离
 							}
-							
+
 							// 如果连续多次无新数据，强制滚动到最后一个评论和底部
 							if (noChangeCount > 3 && noChangeCount % 3 === 0) {
 								console.log('[评论采集] 强制滚动到最后一个评论和底部...');
@@ -4561,7 +4559,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 									scrollToBottom(scrollContainer);
 								}, 500);
 							}
-							
+
 							if (loadAttempts % 5 === 0 || loadAttempts <= 3) {
 								// 前3次和每5次输出一次日志
 								var progress = totalCount > 0 ? Math.round(currentCount / totalCount * 100) : '?';
@@ -4580,7 +4578,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 								console.log('[评论采集] 📊 进度: ' + currentCount + '/' + (totalCount || '?') + ' (' + progress + '%) - 无新数据，继续滚动 (步长: ' + scrollStep + 'px, 无变化次数: ' + noChangeCount + ')' + scrollInfo);
 							}
 						}
-						
+
 						// 如果连续20次无变化，进行最终检查（增加阈值，确保完整性）
 						if (noChangeCount >= 20) {
 							// 只在第一次触发时输出日志，避免重复
@@ -4588,22 +4586,22 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 								console.log('[评论采集] ⚠️ 评论数量连续20次无变化，进行最终检查...');
 								console.log('[评论采集] 🔍 正在进行深度检查，确保不遗漏评论...');
 							}
-							
+
 							// 如果接近总数但还没达到，进行多次延迟检查（降低阈值到60%，更早触发）
 							if (totalCount > 0 && currentCount < totalCount && currentCount >= totalCount * 0.6) {
 								// 只在第一次触发时输出日志
 								if (noChangeCount === 20) {
 									console.log('[评论采集] 接近完成（' + currentCount + '/' + totalCount + '），进行延迟检查...');
 								}
-								
+
 								// 进行5次延迟检查，每次间隔5秒（增加检查次数和间隔，提高完整度）
 								var finalCheckCount = 0;
 								var maxFinalChecks = 5;
-								
+
 								function performFinalCheck() {
 									try {
 										finalCheckCount++;
-										
+
 										// 第一次最终检查时，先展开所有二级评论
 										if (finalCheckCount === 1) {
 											console.log('[评论采集] 🔍 最终检查: 展开所有二级评论...');
@@ -4614,7 +4612,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 											});
 											return; // 等待展开完成
 										}
-										
+
 										continueFinalCheck();
 									} catch (e) {
 										console.error('[评论采集] 最终检查失败:', e);
@@ -4622,37 +4620,37 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 										stopAutoScroll(true);
 									}
 								}
-								
+
 								function continueFinalCheck() {
 									try {
 										// 每次检查时都尝试多次滚动，确保触发加载
 										scrollToLastComment();
-										
+
 										// 尝试点击所有加载更多按钮
 										setTimeout(function() {
 											console.log('[评论采集] 最终检查: 尝试点击加载按钮...');
 											clickAllLoadMoreButtons();
 										}, 300);
-										
+
 										// 额外滚动到底部，确保触发加载
 										setTimeout(function() {
 											scrollToBottom(scrollContainer);
 										}, 600);
-										
+
 										// 再次滚动到最后一个评论
 										setTimeout(function() {
 											scrollToLastComment();
 										}, 1200);
-										
+
 										// 等待一段时间后检查评论数量（增加等待时间）
 										setTimeout(function() {
 											var finalCount = getCurrentCommentCount();
-											
+
 											// 验证二级评论完整性
 											var verification = verifySecondaryCommentCompleteness();
 											if (verification.totalExpected > 0) {
 												console.log('[评论采集] 📊 二级评论验证: ' + verification.totalActual + '/' + verification.totalExpected + ' (' + verification.completeness + '%)');
-												
+
 												// 如果不完整且还有检查次数，输出详情
 												if (!verification.isComplete && verification.incompleteComments.length > 0 && finalCheckCount < maxFinalChecks) {
 													console.log('[评论采集] ⚠️ 发现 ' + verification.incompleteComments.length + ' 条评论的回复不完整');
@@ -4660,7 +4658,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 														var inc = verification.incompleteComments[vi];
 														console.log('[评论采集]   - "' + inc.content + '..." 缺少 ' + inc.missing + ' 条回复 (' + inc.actual + '/' + inc.expected + ')');
 													}
-													
+
 													// 如果完整度低于90%，再次尝试展开
 													if (parseFloat(verification.completeness) < 90) {
 														console.log('[评论采集] 🔄 二级评论完整度低于90%，再次尝试展开...');
@@ -4670,9 +4668,9 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 													console.log('[评论采集] ✓ 二级评论完整度验证通过！');
 												}
 											}
-											
+
 											console.log('[评论采集] 最终检查 ' + finalCheckCount + '/' + maxFinalChecks + ': ' + finalCount + '/' + totalCount);
-											
+
 											// 如果第一次检查没有变化，再等待一段时间后再次检查
 											if (finalCount === currentCount && finalCheckCount <= maxFinalChecks - 2) {
 												setTimeout(function() {
@@ -4685,12 +4683,12 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 												}, 2000); // 再等待2秒
 												return;
 											}
-											
+
 											processFinalCheckResult(finalCount);
 										}, 2500); // 增加到2.5秒
-										
+
 										function processFinalCheckResult(finalCount) {
-											
+
 											if (finalCount > currentCount) {
 												// 发现新评论，继续加载
 												console.log('[评论采集] ✓ 发现新评论 (' + currentCount + ' -> ' + finalCount + ')，继续加载');
@@ -4698,21 +4696,21 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 												lastCount = finalCount;
 												lastCommentCount = finalCount;
 												currentCount = finalCount; // 更新当前计数
-												
+
 												// 重新启动滚动加载（定时器应该还在运行，只需要重置标志）
 												autoScrollEnabled = true; // 确保标志为true
 												isScrolling = false; // 释放滚动锁
-												
+
 												// 立即滚动到最后一个评论，触发加载
 												scrollToLastComment();
-												
+
 												// 立即执行一次滚动
 												setTimeout(function() {
 													performScrollLoad();
 												}, 1000);
 												return;
 											}
-											
+
 											if (finalCheckCount < maxFinalChecks) {
 												// 继续检查（增加间隔到5秒，给网络更多时间）
 												console.log('[评论采集] ⏳ 预计还需要 ' + ((maxFinalChecks - finalCheckCount) * 5) + ' 秒完成检查');
@@ -4720,12 +4718,12 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 											} else {
 												// 最终确认停止
 												console.log('[评论采集] 最终评论数: ' + finalCount + (totalCount > 0 ? ' / ' + totalCount : ''));
-												
+
 												// 如果还是没达到总数，给出警告
 												if (totalCount > 0 && finalCount < totalCount) {
 													console.warn('[评论采集] ⚠️ 未能加载全部评论: ' + finalCount + '/' + totalCount + ' (差' + (totalCount - finalCount) + '条)');
 												}
-												
+
 												isScrolling = false;
 												stopAutoScroll(true);
 											}
@@ -4736,20 +4734,20 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 										stopAutoScroll(true);
 									}
 								}
-								
+
 								// 延迟5秒后开始最终检查（给予更多时间）
 								setTimeout(performFinalCheck, 5000);
 								isScrolling = false;
 								return;
 							}
-							
+
 							// 如果不接近总数，直接停止
 							console.log('[评论采集] 最终评论数: ' + currentCount + (totalCount > 0 ? ' / ' + totalCount : ''));
 							isScrolling = false;
 							stopAutoScroll(true);
 							return;
 						}
-						
+
 						// 释放滚动锁，允许下次滚动
 						isScrolling = false;
 					} catch (e) {
@@ -4762,15 +4760,15 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				isScrolling = false;
 			}
 		}
-		
+
 		// 立即执行第一次滚动
 		performScrollLoad();
-		
+
 		// 设置定时器，每4秒滚动一次（增加间隔，给予更多时间加载数据）
 		// 考虑到每次滚动后会等待2.5秒+1.5秒=4秒来检查数据，所以总周期约8秒
 		autoScrollInterval = setInterval(performScrollLoad, 4000);
 	}
-	
+
 	// 停止自动加载
 	function stopAutoScroll(scrollToTop) {
 		if (autoScrollInterval) {
@@ -4779,20 +4777,20 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 		}
 		autoScrollEnabled = false;
 		noChangeCount = 0;
-		
+
 		if (scrollToTop) {
 			console.log('[评论采集] 📤 返回顶部');
 			window.scrollTo({ top: 0, behavior: 'smooth' });
-			
+
 			// 加载完成后，进行检查确保获取到所有评论
 			var saveCheckCount = 0;
 			var maxSaveChecks = 2; // 最多检查2次（减少重复检查）
 			var lastSaveCount = 0;
-			
+
 			function performSaveCheck() {
 				saveCheckCount++;
 				console.log('[评论采集] 保存前检查 ' + saveCheckCount + '/' + maxSaveChecks + '...');
-				
+
 				// 获取最新的评论数据
 				try {
 					var rootElements = document.querySelectorAll('[data-v-app], #app, [id*="app"], [class*="app"]');
@@ -4802,38 +4800,38 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 						if (vueInstance) {
 							var componentInstance = vueInstance.component || vueInstance;
 							if (componentInstance) {
-								var appContext = componentInstance.appContext || 
+								var appContext = componentInstance.appContext ||
 								                 (componentInstance.ctx && componentInstance.ctx.appContext);
-								
+
 								if (appContext && appContext.config && appContext.config.globalProperties) {
 									if (appContext.config.globalProperties.$pinia) {
 										var pinia = appContext.config.globalProperties.$pinia;
 										if (pinia.state && pinia.state._value && pinia.state._value.feed) {
 											var feedStore = pinia.state._value.feed;
-											
+
 											// 安全地访问评论数据
 											var finalComments = null;
 											try {
-												if (feedStore.commentList && feedStore.commentList.dataList && 
-												    feedStore.commentList.dataList.items && 
+												if (feedStore.commentList && feedStore.commentList.dataList &&
+												    feedStore.commentList.dataList.items &&
 												    Array.isArray(feedStore.commentList.dataList.items)) {
 													finalComments = feedStore.commentList.dataList.items;
 												}
 											} catch (accessError) {
 												console.error('[评论采集] 访问评论数据失败:', accessError.message);
 											}
-											
+
 											if (finalComments && finalComments.length > 0) {
 												var totalCommentCount = 0;
 												if (window.__wx_channels_store__ && window.__wx_channels_store__.profile) {
 													totalCommentCount = window.__wx_channels_store__.profile.commentCount || 0;
 												}
-												
+
 												// 检查评论数量是否有变化
 												if (finalComments.length > lastSaveCount) {
 													console.log('[评论采集] ✓ 发现新评论: ' + lastSaveCount + ' -> ' + finalComments.length);
 													lastSaveCount = finalComments.length;
-													
+
 													// 如果还没达到总数，尝试再次滚动到底部触发加载
 													if (totalCommentCount > 0 && finalComments.length < totalCommentCount && saveCheckCount < maxSaveChecks) {
 														console.log('[评论采集] 尝试再次滚动到底部触发加载...');
@@ -4845,11 +4843,11 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 													// 第一次检查，记录初始数量
 													lastSaveCount = finalComments.length;
 												}
-												
+
 												// 最后一次检查或已达到总数，保存评论
 												if (saveCheckCount >= maxSaveChecks || (totalCommentCount > 0 && finalComments.length >= totalCommentCount)) {
 													console.log('[评论采集] ✅ 加载完成，准备保存评论');
-													
+
 													// 统计实际评论数（包括二级回复）
 													var actualCommentCount = finalComments.length;
 													var level2Count = 0;
@@ -4859,19 +4857,19 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 														}
 													}
 													actualCommentCount += level2Count;
-													
+
 													console.log('[评论采集] 💾 保存最终评论: ' + actualCommentCount + '/' + totalCommentCount + ' (一级:' + finalComments.length + ' + 二级:' + level2Count + ')');
-													
+
 													saveCommentData(finalComments, {
 														source: 'auto_scroll_complete',
 														totalCount: totalCommentCount,
 														loadedCount: actualCommentCount,
 														isComplete: actualCommentCount >= totalCommentCount
 													});
-													
+
 													lastCommentSignature = getCommentSignature(finalComments);
 													lastCommentCount = actualCommentCount;
-													
+
 													// 标记已通过自动滚动保存，停止Store监控
 													isLoadingAllComments = false;
 													if (commentCheckInterval) {
@@ -4885,17 +4883,17 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 														pendingSaveTimer = null;
 														console.log('[评论采集] ✓ 已取消待保存的定时器');
 													}
-													
+
 													// 保存完成后返回页面顶部
 													console.log('[评论采集] 📤 返回页面顶部');
 													setTimeout(function() {
 														window.scrollTo({ top: 0, behavior: 'smooth' });
 														console.log('[评论采集] ✅ 评论采集完成');
 													}, 500);
-													
+
 													return;
 												}
-												
+
 												// 继续检查
 												if (saveCheckCount < maxSaveChecks) {
 													setTimeout(performSaveCheck, 2000);
@@ -4922,7 +4920,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 					console.error('[评论采集] 错误类型:', typeof e);
 					console.error('[评论采集] 错误消息:', e.message || '(无消息)');
 					console.error('[评论采集] 错误堆栈:', e.stack || '(无堆栈)');
-					
+
 					// 如果出错，尝试直接保存当前已有的评论
 					if (saveCheckCount >= maxSaveChecks) {
 						console.log('[评论采集] ⚠️ 检查失败但已达最大次数，尝试保存当前评论');
@@ -4936,19 +4934,19 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 					}
 				}
 			}
-			
+
 			// 延迟2秒后开始检查
 			setTimeout(performSaveCheck, 2000);
 		}
 	}
-	
 
-	
+
+
 	// 深度探测Store结构的辅助函数
 	var deepFindFirstLog = true; // 标记是否是第一次找到
 	function deepFindComments(obj, path, maxDepth, currentDepth) {
 		if (!obj || typeof obj !== 'object' || currentDepth >= maxDepth) return null;
-		
+
 		// 检查当前对象是否包含评论数组
 		var possibleArrays = ['comments', 'commentList', 'commentData', 'list', 'items', 'data', 'rootCommentList'];
 		for (var i = 0; i < possibleArrays.length; i++) {
@@ -4956,8 +4954,8 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 			if (Array.isArray(obj[key]) && obj[key].length > 0) {
 				var firstItem = obj[key][0];
 				// 验证是否是评论数据
-				if (firstItem && typeof firstItem === 'object' && 
-				    (firstItem.content || firstItem.comment || firstItem.text || 
+				if (firstItem && typeof firstItem === 'object' &&
+				    (firstItem.content || firstItem.comment || firstItem.text ||
 				     firstItem.nickname || firstItem.userName || firstItem.commentId)) {
 					// 只在第一次找到时输出日志
 					if (deepFindFirstLog) {
@@ -4968,7 +4966,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				}
 			}
 		}
-		
+
 		// 递归搜索子对象
 		try {
 			var keys = Object.keys(obj);
@@ -4981,25 +4979,25 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				} catch (e) {}
 			}
 		} catch (e) {}
-		
+
 		return null;
 	}
-	
+
 	function startCommentMonitoring() {
 		if (commentCheckInterval) {
 			clearInterval(commentCheckInterval);
 		}
-		
+
 		console.log('[评论采集] 启动评论监控（仅从Store获取）...');
-		
+
 		commentCheckInterval = setInterval(function() {
 			storeCheckAttempts++;
-			
+
 			// 尝试从Store获取评论数据
 			var comments = [];
 			var foundStore = false;
 			var storePath = '';
-			
+
 			try {
 				// 第一次检查时输出全局对象信息
 				if (storeCheckAttempts === 1) {
@@ -5009,11 +5007,11 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 					console.log('[评论采集]   - window.$pinia:', !!window.$pinia);
 					console.log('[评论采集]   - window.__PINIA__:', !!window.__PINIA__);
 					console.log('[评论采集]   - window.$store:', !!window.$store);
-					
+
 					// 尝试从DOM元素获取Vue实例
 					var rootElements = document.querySelectorAll('[data-v-app], #app, [id*="app"], [class*="app"]');
 					console.log('[评论采集]   - 找到可能的根元素:', rootElements.length);
-					
+
 					if (rootElements.length > 0) {
 						var firstEl = rootElements[0];
 						console.log('[评论采集]   - 第一个根元素的Vue属性:');
@@ -5023,23 +5021,23 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 						console.log('[评论采集]     - __vnode:', !!firstEl.__vnode);
 					}
 				}
-				
+
 				// 方法1: 从Vue DevTools Hook获取
 				if (window.__VUE_DEVTOOLS_GLOBAL_HOOK__ && window.__VUE_DEVTOOLS_GLOBAL_HOOK__.apps) {
 					var apps = window.__VUE_DEVTOOLS_GLOBAL_HOOK__.apps;
-					
+
 					if (storeCheckAttempts === 1) {
 						console.log('[评论采集] ✓ 找到Vue DevTools Hook');
 						console.log('[评论采集] ✓ 找到', apps.length, '个Vue应用实例');
 					}
-					
+
 					for (var i = 0; i < apps.length; i++) {
 						var app = apps[i];
 						if (app && app.config && app.config.globalProperties) {
 							// 检查Pinia
 							if (app.config.globalProperties.$pinia) {
 								var pinia = app.config.globalProperties.$pinia;
-								
+
 								if (storeCheckAttempts === 1) {
 									console.log('[评论采集] 找到Pinia实例');
 									if (pinia.state && pinia.state._value) {
@@ -5047,18 +5045,18 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 										console.log('[评论采集] Pinia stores:', storeKeys.join(', '));
 									}
 								}
-								
+
 								if (pinia.state && pinia.state._value) {
 									// 遍历所有store
 									for (var storeKey in pinia.state._value) {
 										var store = pinia.state._value[storeKey];
-										
+
 										// 第一次检查时输出每个store的结构
 										if (storeCheckAttempts === 1 && store) {
 											var storeKeys = Object.keys(store);
 											console.log('[评论采集] Store "' + storeKey + '" 的字段:', storeKeys.slice(0, 10).join(', '));
 										}
-										
+
 										// 使用深度搜索查找评论
 										if (store) {
 											var result = deepFindComments(store, 'pinia.' + storeKey, 3, 0);
@@ -5074,11 +5072,11 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 									}
 								}
 							}
-							
+
 							// 检查Vuex
 							if (!foundStore && app.config.globalProperties.$store) {
 								var store = app.config.globalProperties.$store;
-								
+
 								if (storeCheckAttempts === 1) {
 									console.log('[评论采集] 找到Vuex store');
 									if (store.state) {
@@ -5086,7 +5084,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 										console.log('[评论采集] Vuex state模块:', stateKeys.join(', '));
 									}
 								}
-								
+
 								if (store.state) {
 									var result = deepFindComments(store.state, 'vuex.state', 3, 0);
 									if (result) {
@@ -5099,17 +5097,17 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 								}
 							}
 						}
-						
+
 						if (foundStore) break;
 					}
 				}
-				
+
 				// 方法2: 直接从window对象查找
 				if (!foundStore && window.$pinia) {
 					if (storeCheckAttempts === 1) {
 						console.log('[评论采集] ✓ 从window.$pinia查找...');
 					}
-					
+
 					var pinia = window.$pinia;
 					if (pinia.state && pinia.state._value) {
 						for (var storeKey in pinia.state._value) {
@@ -5128,13 +5126,13 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 						}
 					}
 				}
-				
+
 				// 方法3: 从window.__PINIA__查找
 				if (!foundStore && window.__PINIA__) {
 					if (storeCheckAttempts === 1) {
 						console.log('[评论采集] ✓ 从window.__PINIA__查找...');
 					}
-					
+
 					var result = deepFindComments(window.__PINIA__, 'window.__PINIA__', 4, 0);
 					if (result) {
 						comments = result.data;
@@ -5144,30 +5142,30 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 						console.log('[评论采集] ✓ 数据路径:', storePath);
 					}
 				}
-				
+
 				// 方法4: 从DOM元素的Vue实例获取
 				if (!foundStore) {
 					if (storeCheckAttempts === 1) {
 						console.log('[评论采集] 尝试从DOM元素获取Vue实例...');
 					}
-					
+
 					var rootElements = document.querySelectorAll('[data-v-app], #app, [id*="app"], [class*="app"]');
 					for (var i = 0; i < Math.min(rootElements.length, 3); i++) {
 						var el = rootElements[i];
 						var vueInstance = el.__vue__ || el.__vueParentComponent || el._vnode || el.__vnode;
-						
+
 						if (vueInstance) {
 							if (storeCheckAttempts === 1) {
 								console.log('[评论采集] ✓ 找到Vue实例，尝试获取store...');
 							}
-							
+
 							// 尝试从Vue实例获取store
 							var componentInstance = vueInstance.component || vueInstance;
 							if (componentInstance) {
 								// 检查appContext
-								var appContext = componentInstance.appContext || 
+								var appContext = componentInstance.appContext ||
 								                (componentInstance.ctx && componentInstance.ctx.appContext);
-								
+
 								if (appContext && appContext.config && appContext.config.globalProperties) {
 									if (appContext.config.globalProperties.$pinia) {
 										var pinia = appContext.config.globalProperties.$pinia;
@@ -5176,7 +5174,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 												var storeKeys = Object.keys(pinia.state._value);
 												console.log('[评论采集] ✓ 从Vue实例找到Pinia stores:', storeKeys.join(', '));
 											}
-											
+
 											for (var storeKey in pinia.state._value) {
 												var store = pinia.state._value[storeKey];
 												if (store) {
@@ -5199,7 +5197,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 								}
 							}
 						}
-						
+
 						if (foundStore) break;
 					}
 				}
@@ -5210,21 +5208,21 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 					console.error('[评论采集] 错误堆栈:', e.stack);
 				}
 			}
-			
+
 			// 如果找到了评论数据，检查是否有变化
 			if (foundStore && comments.length > 0) {
 				var currentSignature = getCommentSignature(comments);
-				
+
 				// 获取总评论数（从视频信息中）
 				var totalCommentCount = 0;
 				if (window.__wx_channels_store__ && window.__wx_channels_store__.profile) {
 					totalCommentCount = window.__wx_channels_store__.profile.commentCount || 0;
 				}
-				
+
 				if (currentSignature !== lastCommentSignature) {
 					// 检测到变化，重置稳定计数
 					stableCheckCount = 0;
-					
+
 					console.log('[评论采集] ✓ 检测到评论数据变化');
 					console.log('[评论采集]   - 之前签名:', lastCommentSignature || '(无)');
 					console.log('[评论采集]   - 当前签名:', currentSignature);
@@ -5234,10 +5232,10 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 						console.log('[评论采集]   - 完成度:', (comments.length / totalCommentCount * 100).toFixed(1) + '%');
 					}
 					console.log('[评论采集]   - 示例评论:', JSON.stringify(comments[0]).substring(0, 100) + '...');
-					
+
 					lastCommentSignature = currentSignature;
 					lastCommentCount = comments.length;
-					
+
 					// 第一次找到评论时，先启动自动滚动
 					if (storeCheckAttempts === 1) {
 						if (totalCommentCount > 0 && comments.length < totalCommentCount) {
@@ -5251,51 +5249,51 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 							console.log('[评论采集] ✅ 评论已完全加载: ' + comments.length + '/' + totalCommentCount);
 						}
 					}
-					
+
 					// 检查是否已经完成加载（如果正在自动滚动）
 					if (autoScrollEnabled && totalCommentCount > 0 && comments.length >= totalCommentCount) {
 						console.log('[评论采集] ✅ 检测到评论已完全加载，停止自动滚动');
 						stopAutoScroll(true);
 						return;
 					}
-					
+
 					// 如果正在自动滚动，不要设置延迟保存（等滚动完成后再保存）
 					if (autoScrollEnabled) {
 						console.log('[评论采集] ⏳ 自动滚动中，等待滚动完成后保存...');
 						return; // 跳过延迟保存，等自动滚动完成
 					}
-					
+
 					// 清除之前的延迟保存定时器
 					if (pendingSaveTimer) {
 						clearTimeout(pendingSaveTimer);
 					}
-					
+
 					// 延迟保存：等待6秒确保数据稳定
 					console.log('[评论采集] ⏳ 等待6秒后保存...');
 					pendingSaveTimer = setTimeout(function() {
 						// 再次检查签名是否还是一样的
 						var finalComments = [];
 						var finalSignature = '';
-						
+
 						// 重新获取最新的评论数据
 						try {
 							var rootElements = document.querySelectorAll('[data-v-app], #app, [id*="app"], [class*="app"]');
 							for (var i = 0; i < Math.min(rootElements.length, 3); i++) {
 								var el = rootElements[i];
 								var vueInstance = el.__vue__ || el.__vueParentComponent || el._vnode || el.__vnode;
-								
+
 								if (vueInstance) {
 									var componentInstance = vueInstance.component || vueInstance;
 									if (componentInstance) {
-										var appContext = componentInstance.appContext || 
+										var appContext = componentInstance.appContext ||
 										                (componentInstance.ctx && componentInstance.ctx.appContext);
-										
+
 										if (appContext && appContext.config && appContext.config.globalProperties) {
 											if (appContext.config.globalProperties.$pinia) {
 												var pinia = appContext.config.globalProperties.$pinia;
 												if (pinia.state && pinia.state._value && pinia.state._value.feed) {
 													var feedStore = pinia.state._value.feed;
-													if (feedStore.commentList && feedStore.commentList.dataList && 
+													if (feedStore.commentList && feedStore.commentList.dataList &&
 													    feedStore.commentList.dataList.items) {
 														finalComments = feedStore.commentList.dataList.items;
 														finalSignature = getCommentSignature(finalComments);
@@ -5310,31 +5308,31 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 						} catch (e) {
 							console.error('[评论采集] 获取最新评论数据失败:', e);
 						}
-						
+
 						if (finalComments.length > 0) {
 							console.log('[评论采集] ✓ 数据已稳定，最终评论数:', finalComments.length);
 							console.log('[评论采集] 💾 开始保存...');
-							
+
 							// 保存最终的评论数据
 							saveCommentData(finalComments, {
-								source: 'store_monitor', 
+								source: 'store_monitor',
 								path: storePath,
 								totalCount: totalCommentCount,
 								loadedCount: finalComments.length,
 								isComplete: finalComments.length >= totalCommentCount
 							});
-							
+
 							// 更新签名
 							lastCommentSignature = finalSignature;
 							lastCommentCount = finalComments.length;
 						}
-						
+
 						pendingSaveTimer = null;
 					}, 6000); // 6秒延迟
 				} else {
 					// 签名没有变化，增加稳定计数
 					stableCheckCount++;
-					
+
 					if (storeCheckAttempts === 2) {
 						// 第二次检查时，如果数据没变化，说明监控正常工作
 						if (totalCommentCount > 0 && comments.length < totalCommentCount) {
@@ -5343,21 +5341,21 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 							console.log('[评论采集] ✓ 监控正常，等待评论变化...');
 						}
 					}
-					
+
 					// 如果数据已经稳定5次检查（15秒），且有待保存的数据，立即保存
 					if (stableCheckCount >= 5 && pendingSaveTimer) {
 						console.log('[评论采集] ✓ 数据已稳定15秒，立即保存');
 						clearTimeout(pendingSaveTimer);
 						pendingSaveTimer = null;
-						
+
 						saveCommentData(comments, {
-							source: 'store_monitor', 
+							source: 'store_monitor',
 							path: storePath,
 							totalCount: totalCommentCount,
 							loadedCount: comments.length,
 							isComplete: comments.length >= totalCommentCount
 						});
-						
+
 						stableCheckCount = 0;
 					}
 				}
@@ -5365,7 +5363,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 				// 前5次尝试时输出调试信息
 				console.log('[评论采集] 第', storeCheckAttempts, '次检查，未找到评论Store');
 			}
-			
+
 			// 如果超过最大尝试次数且没有找到Store，降低检查频率
 			if (storeCheckAttempts > maxStoreCheckAttempts && !foundStore) {
 				console.log('[评论采集] 已尝试', maxStoreCheckAttempts, '次，未找到评论Store，降低检查频率');
@@ -5376,7 +5374,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 			}
 		}, 3000); // 每3秒检查一次
 	}
-	
+
 	// 暴露手动启动评论采集的函数
 	window.__wx_channels_start_comment_collection = function() {
 		if (window.location.pathname.includes('/pages/feed')) {
@@ -5386,7 +5384,7 @@ func (h *ScriptHandler) getCommentCaptureScript() string {
 			console.log('[评论采集] ⚠️ 当前不是Feed页面，无法采集评论');
 		}
 	};
-	
+
 	console.log('[评论采集] 评论采集系统初始化完成（手动模式）');
 	console.log('[评论采集] 💡 评论按钮将与下载按钮一起显示');
 })();
@@ -5408,13 +5406,13 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 <script>
 (function() {
 	'use strict';
-	
+
 	// 防止重复初始化
 	if (window.__wx_channels_log_panel_initialized__) {
 		return;
 	}
 	window.__wx_channels_log_panel_initialized__ = true;
-	
+
 	// 日志存储
 	const logStore = {
 		logs: [],
@@ -5431,18 +5429,18 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 				}
 				return String(arg);
 			}).join(' ');
-			
+
 			this.logs.push({
 				level: level,
 				message: message,
 				timestamp: timestamp
 			});
-			
+
 			// 限制日志数量
 			if (this.logs.length > this.maxLogs) {
 				this.logs.shift();
 			}
-			
+
 			// 更新面板显示
 			if (window.__wx_channels_log_panel) {
 				window.__wx_channels_log_panel.updateDisplay();
@@ -5455,14 +5453,14 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 			}
 		}
 	};
-	
+
 	// 创建日志面板
 	function createLogPanel() {
 		const panel = document.createElement('div');
 		panel.id = '__wx_channels_log_panel';
 		// 检测是否为移动设备
 		const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
-		
+
 		// 面板位置：在按钮旁边，向上展开
 		const btnBottom = isMobile ? 80 : 20;
 		const btnLeft = isMobile ? 15 : 20;
@@ -5472,7 +5470,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 		const panelMaxHeight = isMobile ? 'calc(100vh - ' + (btnBottom + btnSize + 20) + 'px)' : '500px';
 		const panelFontSize = isMobile ? '11px' : '12px';
 		const panelBottom = btnBottom + btnSize + 10; // 按钮上方10px
-		
+
 		panel.style.cssText = 'position: fixed;' +
 			'bottom: ' + panelBottom + 'px;' +
 			'left: ' + btnLeft + 'px;' +
@@ -5493,7 +5491,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 			'overflow: hidden;' +
 			'transition: height 0.3s ease, opacity 0.3s ease;' +
 			'opacity: 0;';
-		
+
 		// 标题栏
 		const header = document.createElement('div');
 		header.style.cssText = 'background: #1a1a1a;' +
@@ -5504,14 +5502,14 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 			'align-items: center;' +
 			'cursor: move;' +
 			'user-select: none;';
-		
+
 		const title = document.createElement('span');
 		title.textContent = '📋 日志面板';
 		title.style.cssText = 'font-weight: bold; color: #4CAF50;';
-		
+
 		const controls = document.createElement('div');
 		controls.style.cssText = 'display: flex; gap: 8px;';
-		
+
 		// 清空按钮
 		const clearBtn = document.createElement('button');
 		clearBtn.textContent = '清空';
@@ -5526,7 +5524,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 			e.stopPropagation();
 			logStore.clear();
 		};
-		
+
 		// 复制日志按钮
 		const copyBtn = document.createElement('button');
 		copyBtn.textContent = '复制';
@@ -5553,12 +5551,12 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 					}
 					logText += '[' + log.timestamp + '] ' + levelPrefix + ' ' + log.message + '\n';
 				});
-				
+
 				if (logText === '') {
 					alert('日志为空，无需复制');
 					return;
 				}
-				
+
 				// 使用 Clipboard API 复制
 				if (navigator.clipboard && navigator.clipboard.writeText) {
 					navigator.clipboard.writeText(logText).then(function() {
@@ -5580,7 +5578,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 				alert('复制失败: ' + error.message);
 			}
 		};
-		
+
 		// 复制到剪贴板的降级方案
 		function copyToClipboardFallback(text) {
 			var textArea = document.createElement('textarea');
@@ -5606,7 +5604,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 			}
 			document.body.removeChild(textArea);
 		}
-		
+
 		// 导出日志按钮
 		const exportBtn = document.createElement('button');
 		exportBtn.textContent = '导出';
@@ -5633,12 +5631,12 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 					}
 					logText += '[' + log.timestamp + '] ' + levelPrefix + ' ' + log.message + '\n';
 				});
-				
+
 				if (logText === '') {
 					alert('日志为空，无需导出');
 					return;
 				}
-				
+
 				// 创建 Blob 并下载
 				var blob = new Blob([logText], { type: 'text/plain;charset=utf-8' });
 				var url = URL.createObjectURL(blob);
@@ -5650,7 +5648,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 				a.click();
 				document.body.removeChild(a);
 				URL.revokeObjectURL(url);
-				
+
 				exportBtn.textContent = '已导出';
 				setTimeout(function() {
 					exportBtn.textContent = '导出';
@@ -5660,7 +5658,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 				alert('导出失败: ' + error.message);
 			}
 		};
-		
+
 		// 最小化/最大化按钮
 		const toggleBtn = document.createElement('button');
 		toggleBtn.textContent = '−';
@@ -5682,7 +5680,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 				toggleBtn.textContent = '+';
 			}
 		};
-		
+
 		// 关闭按钮
 		const closeBtn = document.createElement('button');
 		closeBtn.textContent = '×';
@@ -5698,7 +5696,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 			e.stopPropagation();
 			panel.style.display = 'none';
 		};
-		
+
 		controls.appendChild(clearBtn);
 		controls.appendChild(copyBtn);
 		controls.appendChild(exportBtn);
@@ -5706,7 +5704,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 		controls.appendChild(closeBtn);
 		header.appendChild(title);
 		header.appendChild(controls);
-		
+
 		// 日志内容区域
 		const content = document.createElement('div');
 		content.className = 'log-content';
@@ -5716,11 +5714,11 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 			'display: flex;' +
 			'flex-direction: column;' +
 			'gap: 2px;';
-		
+
 		// 滚动条样式
 		content.style.scrollbarWidth = 'thin';
 		content.style.scrollbarColor = '#555 #222';
-		
+
 		// 更新显示
 		function updateDisplay() {
 			content.innerHTML = '';
@@ -5731,7 +5729,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 					'word-break: break-all;' +
 					'line-height: 1.4;' +
 					'background: rgba(255, 255, 255, 0.05);';
-				
+
 				// 根据日志级别设置颜色
 				let levelColor = '#fff';
 				let levelPrefix = '';
@@ -5756,31 +5754,31 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 					default:
 						levelPrefix = '[LOG]';
 				}
-				
+
 				logItem.innerHTML = '<span style="color: #888; font-size: 10px;">[' + log.timestamp + ']</span>' +
 					'<span style="color: ' + levelColor + '; font-weight: bold; margin: 0 4px;">' + levelPrefix + '</span>' +
 					'<span style="color: #fff;">' + escapeHtml(log.message) + '</span>';
-				
+
 				content.appendChild(logItem);
 			});
-			
+
 			// 自动滚动到底部
 			content.scrollTop = content.scrollHeight;
 		}
-		
+
 		// HTML转义
 		function escapeHtml(text) {
 			const div = document.createElement('div');
 			div.textContent = text;
 			return div.innerHTML;
 		}
-		
+
 		panel.appendChild(header);
 		panel.appendChild(content);
 		document.body.appendChild(panel);
-		
+
 		// 移除拖拽功能，面板位置固定在按钮旁边
-		
+
 		// 计算面板高度
 		function getPanelHeight() {
 			// 临时显示以计算高度
@@ -5790,21 +5788,21 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 				panel.style.height = 'auto';
 				panel.style.opacity = '0';
 			}
-			
+
 			const maxHeight = parseInt(panel.style.maxHeight) || 500;
 			const headerHeight = header.offsetHeight || 40;
 			const contentHeight = content.scrollHeight || 0;
 			const totalHeight = headerHeight + contentHeight + 16; // 16px padding
 			const finalHeight = Math.min(maxHeight, totalHeight);
-			
+
 			if (wasHidden) {
 				panel.style.display = 'none';
 				panel.style.height = '0';
 			}
-			
+
 			return finalHeight;
 		}
-		
+
 		// 暴露更新方法
 		window.__wx_channels_log_panel = {
 			panel: panel,
@@ -5837,7 +5835,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 			}
 		};
 	}
-	
+
 	// 保存原始的console方法
 	const originalConsole = {
 		log: console.log.bind(console),
@@ -5846,33 +5844,33 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 		error: console.error.bind(console),
 		debug: console.debug.bind(console)
 	};
-	
+
 	// 重写console方法
 	console.log = function(...args) {
 		originalConsole.log.apply(console, args);
 		logStore.addLog('log', args);
 	};
-	
+
 	console.info = function(...args) {
 		originalConsole.info.apply(console, args);
 		logStore.addLog('info', args);
 	};
-	
+
 	console.warn = function(...args) {
 		originalConsole.warn.apply(console, args);
 		logStore.addLog('warn', args);
 	};
-	
+
 	console.error = function(...args) {
 		originalConsole.error.apply(console, args);
 		logStore.addLog('error', args);
 	};
-	
+
 	console.debug = function(...args) {
 		originalConsole.debug.apply(console, args);
 		logStore.addLog('log', args);
 	};
-	
+
 	// 创建浮动触发按钮（用于微信浏览器等无法使用快捷键的场景）
 	function createToggleButton() {
 		const btn = document.createElement('div');
@@ -5880,13 +5878,13 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 		btn.innerHTML = '📋';
 		// 检测是否为移动设备
 		const isMobileBtn = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
-		
+
 		const btnBottom = isMobileBtn ? '80px' : '20px';
 		const btnLeft = isMobileBtn ? '15px' : '20px';
 		const btnWidth = isMobileBtn ? '56px' : '50px';
 		const btnHeight = isMobileBtn ? '56px' : '50px';
 		const btnFontSize = isMobileBtn ? '28px' : '24px';
-		
+
 		btn.style.cssText = 'position: fixed;' +
 			'bottom: ' + btnBottom + ';' +
 			'left: ' + btnLeft + ';' +
@@ -5906,26 +5904,26 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 			'border: 2px solid rgba(255, 255, 255, 0.3);' +
 			'touch-action: manipulation;' +
 			'-webkit-tap-highlight-color: transparent;';
-		
+
 		btn.addEventListener('mouseenter', function() {
 			btn.style.transform = 'scale(1.1)';
 			btn.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.4)';
 		});
-		
+
 		btn.addEventListener('mouseleave', function() {
 			btn.style.transform = 'scale(1)';
 			btn.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
 		});
-		
+
 		// 切换面板显示的函数
 		function togglePanel() {
 			if (window.__wx_channels_log_panel) {
-				const isVisible = window.__wx_channels_log_panel.panel.style.display !== 'none' && 
+				const isVisible = window.__wx_channels_log_panel.panel.style.display !== 'none' &&
 				                  window.__wx_channels_log_panel.panel.style.opacity !== '0';
 				window.__wx_channels_log_panel.toggle();
 				// 延迟更新按钮状态，等待动画完成
 				setTimeout(function() {
-					const nowVisible = window.__wx_channels_log_panel.panel.style.display !== 'none' && 
+					const nowVisible = window.__wx_channels_log_panel.panel.style.display !== 'none' &&
 					                  window.__wx_channels_log_panel.panel.style.opacity !== '0';
 					if (nowVisible) {
 						btn.style.opacity = '1';
@@ -5937,21 +5935,21 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 				}, 100);
 			}
 		}
-		
+
 		// 支持点击和触摸事件
 		btn.addEventListener('click', togglePanel);
 		btn.addEventListener('touchend', function(e) {
 			e.preventDefault();
 			togglePanel();
 		});
-		
+
 		btn.title = '点击显示/隐藏日志面板';
 		document.body.appendChild(btn);
-		
+
 		// 初始状态：面板默认不显示，按钮半透明
 		btn.style.opacity = '0.6';
 	}
-	
+
 	// 页面加载完成后创建面板和按钮
 	if (document.readyState === 'loading') {
 		document.addEventListener('DOMContentLoaded', function() {
@@ -5968,7 +5966,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 			createToggleButton();
 		}
 	}
-	
+
 	// 添加快捷键：Ctrl+Shift+L 显示/隐藏日志面板（桌面浏览器可用）
 	document.addEventListener('keydown', function(e) {
 		if (e.ctrlKey && e.shiftKey && e.key === 'L') {
@@ -5979,7 +5977,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 				const btn = document.getElementById('__wx_channels_log_toggle_btn');
 				if (btn) {
 					setTimeout(function() {
-						const isVisible = window.__wx_channels_log_panel.panel.style.display !== 'none' && 
+						const isVisible = window.__wx_channels_log_panel.panel.style.display !== 'none' &&
 						                  window.__wx_channels_log_panel.panel.style.opacity !== '0';
 						if (isVisible) {
 							btn.style.opacity = '1';
@@ -5991,7 +5989,7 @@ window.__wx_channels_show_log_button__ = ` + showLogButton + `;
 			}
 		}
 	});
-	
+
 	// 面板默认不显示，需要点击按钮才会显示
 })();
 </script>`

@@ -19,7 +19,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/qtgolang/SunnyNet/SunnyNet"
-	"github.com/qtgolang/SunnyNet/public"
+	nf_http "github.com/qtgolang/SunnyNet/src/http"
+	"github.com/qtgolang/SunnyNet/src/public"
 
 	"wx_channel/internal/config"
 	"wx_channel/internal/database"
@@ -653,12 +654,13 @@ func main() {
 	_, err3 := client.Get("https://sunny.io/")
 	if err3 == nil {
 		if os_env == "windows" {
-			ok := Sunny.StartProcess()
-			if !ok {
-				color.Red("\nERROR 启动进程代理失败，检查是否以管理员身份运行\n")
-				color.Yellow("按 Ctrl+C 退出...\n")
-				select {}
-			}
+			// Sunny.StartProcess() removed in v1.4.0, assuming Start() covers it or manual drive open
+			// ok := Sunny.StartProcess()
+			// if !ok {
+			// 	color.Red("\nERROR 启动进程代理失败，检查是否以管理员身份运行\n")
+			// 	color.Yellow("按 Ctrl+C 退出...\n")
+			// 	select {}
+			// }
 			Sunny.ProcessAddName("WeChatAppEx.exe")
 		}
 
@@ -703,13 +705,13 @@ type FrontendTip struct {
 
 // SunnyNetResponseWriter adapts SunnyNet connection to http.ResponseWriter
 type SunnyNetResponseWriter struct {
-	conn       *SunnyNet.HttpConn
+	conn       SunnyNet.ConnHTTP
 	headers    http.Header
 	statusCode int
 	body       bytes.Buffer
 }
 
-func NewSunnyNetResponseWriter(conn *SunnyNet.HttpConn) *SunnyNetResponseWriter {
+func NewSunnyNetResponseWriter(conn SunnyNet.ConnHTTP) *SunnyNetResponseWriter {
 	return &SunnyNetResponseWriter{
 		conn:       conn,
 		headers:    make(http.Header),
@@ -730,13 +732,27 @@ func (w *SunnyNetResponseWriter) WriteHeader(statusCode int) {
 }
 
 func (w *SunnyNetResponseWriter) Flush() {
-	w.conn.StopRequest(w.statusCode, w.body.String(), w.headers)
+	w.conn.StopRequest(w.statusCode, w.body.String(), nf_http.Header(w.headers))
 }
 
 // handleConsoleAPI bridges SunnyNet to the console API handler
-func handleConsoleAPI(Conn *SunnyNet.HttpConn) {
+func handleConsoleAPI(Conn SunnyNet.ConnHTTP) {
 	w := NewSunnyNetResponseWriter(Conn)
-	consoleAPIHandler.HandleAPIRequest(w, Conn.Request)
+	// Construct http.Request from Conn
+	u, _ := url.Parse(Conn.URL())
+
+	// Create a dummy body that is closed as IO NopCloser
+	bodyBytes := Conn.GetRequestBody()
+	body := io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	req := &http.Request{
+		Method: Conn.Method(),
+		URL:    u,
+		Header: http.Header(Conn.GetRequestHeader()),
+		Body:   body,
+	}
+
+	consoleAPIHandler.HandleAPIRequest(w, req)
 	w.Flush()
 }
 
@@ -781,12 +797,17 @@ func startWebSocketServer(wsPort int) {
 	}
 }
 
-func HttpCallback(Conn *SunnyNet.HttpConn) {
-	host := Conn.Request.URL.Hostname()
-	path := Conn.Request.URL.Path
-	if Conn.Type == public.HttpSendRequest {
+func HttpCallback(Conn SunnyNet.ConnHTTP) {
+	host := ""
+	path := ""
+	if u, err := url.Parse(Conn.URL()); err == nil {
+		host = u.Hostname()
+		path = u.Path
+	}
+
+	if Conn.Type() == public.HttpSendRequest {
 		// Conn.Request.Header.Set("Cache-Control", "no-cache")
-		Conn.Request.Header.Del("Accept-Encoding")
+		// Conn.Request.Header.Del("Accept-Encoding")
 
 		// 处理静态文件请求
 		if handlers.HandleStaticFiles(Conn, zip_js, file_saver_js) {
@@ -904,10 +925,10 @@ func HttpCallback(Conn *SunnyNet.HttpConn) {
 			consoleHTML, err := os.ReadFile("web/console.html")
 			if err != nil {
 				utils.Warn("无法读取 web/console.html: %v", err)
-				Conn.StopRequest(404, "Console not found", http.Header{})
+				Conn.StopRequest(404, "Console not found", make(nf_http.Header))
 				return
 			}
-			headers := http.Header{}
+			headers := make(nf_http.Header)
 			headers.Set("Content-Type", "text/html; charset=utf-8")
 			Conn.StopRequest(200, string(consoleHTML), headers)
 			return
@@ -940,7 +961,7 @@ func HttpCallback(Conn *SunnyNet.HttpConn) {
 				// 同时让微信服务器的资源能够正常加载
 				return
 			}
-			headers := http.Header{}
+			headers := make(nf_http.Header)
 			if strings.HasSuffix(path, ".js") {
 				headers.Set("Content-Type", "application/javascript; charset=utf-8")
 			} else if strings.HasSuffix(path, ".css") {
@@ -969,23 +990,28 @@ func HttpCallback(Conn *SunnyNet.HttpConn) {
 		}
 
 		// 处理预检请求（CORS）
-		if strings.HasPrefix(path, "/__wx_channels_api/") && Conn.Request.Method == "OPTIONS" {
-			headers := http.Header{}
-			headers.Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-			headers.Set("Access-Control-Allow-Headers", "Content-Type, X-Local-Auth")
-			// 若配置了允许的 Origin 且来路匹配，回显 origin
-			if cfg != nil && len(cfg.AllowedOrigins) > 0 {
-				origin := Conn.Request.Header.Get("Origin")
-				for _, o := range cfg.AllowedOrigins {
-					if o == origin {
-						headers.Set("Access-Control-Allow-Origin", origin)
-						headers.Set("Vary", "Origin")
-						break
+		if strings.HasPrefix(path, "/__wx_channels_api/") && (Conn.Method() == "OPTIONS" || Conn.Method() == "POST") {
+			// Note: Accessing Method via Method() assuming it exists. If not, we might be blind.
+			if Conn.Method() == "OPTIONS" {
+				headers := make(nf_http.Header)
+				headers.Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+				headers.Set("Access-Control-Allow-Headers", "Content-Type, X-Local-Auth")
+				// 若配置了允许的 Origin 且来路匹配，回显 origin
+				if cfg != nil && len(cfg.AllowedOrigins) > 0 {
+					origin := Conn.GetRequestHeader()["Origin"]
+					if len(origin) > 0 {
+						for _, o := range cfg.AllowedOrigins {
+							if o == origin[0] {
+								headers.Set("Access-Control-Allow-Origin", origin[0])
+								headers.Set("Vary", "Origin")
+								break
+							}
+						}
 					}
 				}
+				Conn.StopRequest(204, "", headers)
+				return
 			}
-			Conn.StopRequest(204, "", headers)
-			return
 		}
 
 		// 保存页面完整内容的API端点（用于测试，保留在main.go中）
@@ -995,15 +1021,13 @@ func HttpCallback(Conn *SunnyNet.HttpConn) {
 				HTML      string `json:"html"`
 				Timestamp int64  `json:"timestamp"`
 			}
-			body, err := io.ReadAll(Conn.Request.Body)
-			if err != nil {
-				utils.HandleError(err, "读取save_page_content请求体")
+			body := Conn.GetRequestBody()
+			if len(body) == 0 {
+				// utils.HandleError(err, "读取save_page_content请求体")
 				return
 			}
-			if err := Conn.Request.Body.Close(); err != nil {
-				utils.HandleError(err, "关闭请求体")
-			}
-			err = json.Unmarshal(body, &contentData)
+
+			err := json.Unmarshal(body, &contentData)
 			if err != nil {
 				utils.HandleError(err, "解析页面内容数据")
 			} else {
@@ -1014,7 +1038,7 @@ func HttpCallback(Conn *SunnyNet.HttpConn) {
 					saveDynamicHTML(contentData.HTML, parsedURL, contentData.URL, contentData.Timestamp)
 				}
 			}
-			headers := http.Header{}
+			headers := make(nf_http.Header)
 			headers.Set("Content-Type", "application/json")
 			headers.Set("__debug", "fake_resp")
 			Conn.StopRequest(200, "{}", headers)
@@ -1031,15 +1055,13 @@ func HttpCallback(Conn *SunnyNet.HttpConn) {
 				FeedResults []map[string]interface{} `json:"feedResults"` // 动态数据
 				Timestamp   int64                    `json:"timestamp"`
 			}
-			body, err := io.ReadAll(Conn.Request.Body)
-			if err != nil {
-				utils.HandleError(err, "读取save_search_data请求体")
+			body := Conn.GetRequestBody()
+			if len(body) == 0 {
+				// utils.HandleError(err, "读取save_search_data请求体")
 				return
 			}
-			if err := Conn.Request.Body.Close(); err != nil {
-				utils.HandleError(err, "关闭请求体")
-			}
-			err = json.Unmarshal(body, &searchData)
+
+			err := json.Unmarshal(body, &searchData)
 			if err != nil {
 				utils.HandleError(err, "解析搜索数据")
 			} else {
@@ -1050,44 +1072,44 @@ func HttpCallback(Conn *SunnyNet.HttpConn) {
 					saveSearchData(searchData.URL, parsedURL, searchData.Keyword, searchData.Profiles, searchData.LiveResults, searchData.FeedResults, searchData.Timestamp)
 				}
 			}
-			headers := http.Header{}
+			headers := make(nf_http.Header)
 			headers.Set("Content-Type", "application/json")
 			headers.Set("__debug", "fake_resp")
 			Conn.StopRequest(200, "{}", headers)
 			return
 		}
 	}
-	if Conn.Type == public.HttpResponseOK {
-		if Conn.Response.Body != nil {
-			Body, _ := io.ReadAll(Conn.Response.Body)
-			_ = Conn.Response.Body.Close()
-
-			// 记录JS文件请求（调试用）
-			if strings.Contains(path, ".js") {
-				contentType := strings.ToLower(Conn.Response.Header.Get("content-type"))
-				utils.LogInfo("[响应] Path=%s | ContentType=%s", path, contentType)
+	if Conn.Type() == public.HttpResponseOK {
+		Body := Conn.GetResponseBody()
+		// 记录JS文件请求（调试用）
+		if strings.Contains(path, ".js") {
+			// Header is map[string][]string
+			contentType := ""
+			if ct := Conn.GetResponseHeader()["Content-Type"]; len(ct) > 0 {
+				contentType = strings.ToLower(ct[0])
 			}
-
-			// 使用ScriptHandler处理HTML响应
-			if scriptHandler != nil {
-				if scriptHandler.HandleHTMLResponse(Conn, host, path, Body) {
-					return
-				}
-			}
-
-			// 使用ScriptHandler处理JavaScript响应
-			if scriptHandler != nil {
-				if scriptHandler.HandleJavaScriptResponse(Conn, host, path, Body) {
-					return
-				}
-			}
-
-			// 如果没有被ScriptHandler处理，使用原始响应
-			Conn.Response.Body = io.NopCloser(bytes.NewBuffer(Body))
+			utils.LogInfo("[响应] Path=%s | ContentType=%s", path, contentType)
 		}
 
+		// 使用ScriptHandler处理HTML响应
+		if scriptHandler != nil {
+			if scriptHandler.HandleHTMLResponse(Conn, host, path, Body) {
+				return
+			}
+		}
+
+		// 使用ScriptHandler处理JavaScript响应
+		if scriptHandler != nil {
+			if scriptHandler.HandleJavaScriptResponse(Conn, host, path, Body) {
+				return
+			}
+		}
+
+		// 如果没有被ScriptHandler处理，SetResponseBody
+		Conn.SetResponseBody(Body)
+
 	}
-	if Conn.Type == public.HttpRequestFail {
+	if Conn.Type() == public.HttpRequestFail {
 		// 请求错误处理
 	}
 }
