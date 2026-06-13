@@ -62,6 +62,11 @@ func (h *ScriptHandler) HandleHTMLResponse(Conn SunnyNet.ConnHTTP, host, path st
 		utils.Info("页面已成功加载！")
 		utils.Info("已添加视频缓存监控和提醒功能")
 		utils.LogInfo("[页面加载] 视频号页面已加载 | Host=%s | Path=%s", host, path)
+		// 关键：移除 CSP 相关响应头，防止内联脚本被阻止执行
+		Conn.GetResponseHeader().Del("Content-Security-Policy")
+		Conn.GetResponseHeader().Del("X-Content-Security-Policy")
+		Conn.GetResponseHeader().Del("Content-Security-Policy-Report-Only")
+
 		Conn.SetResponseBody([]byte(html))
 		return true
 	}

@@ -514,6 +514,12 @@ func main() {
 				Hostname: "127.0.0.1",
 				Port:     args["port"],
 			})
+		} else if os_env == "windows" {
+			// 在 Windows 上关闭系统代理和驱动
+			utils.Info("正在关闭系统代理和驱动...")
+			Sunny.OpenDrive(0) // 关闭驱动
+			Sunny.Close()      // 关闭代理并尝试还原 IE 代理
+			utils.Info("✓ 已关闭系统代理和驱动")
 		}
 		os.Exit(0)
 	}()
@@ -653,16 +659,12 @@ func main() {
 	}
 	_, err3 := client.Get("https://sunny.io/")
 	if err3 == nil {
-		if os_env == "windows" {
-			// Sunny.StartProcess() removed in v1.4.0, assuming Start() covers it or manual drive open
-			// ok := Sunny.StartProcess()
-			// if !ok {
-			// 	color.Red("\nERROR 启动进程代理失败，检查是否以管理员身份运行\n")
-			// 	color.Yellow("按 Ctrl+C 退出...\n")
-			// 	select {}
-			// }
-			Sunny.ProcessAddName("WeChatAppEx.exe")
-		}
+		Sunny.ProcessAddName("WeChatAppEx.exe")
+		// 尝试开启驱动以捕获进程流量
+		Sunny.OpenDrive(1)
+		// 启用系统代理作为备份，确保微信浏览器流量能正确进入代理
+		Sunny.SetIEProxy()
+		utils.Info("✓ 已启用进程代理(WeChatAppEx.exe)和系统代理驱动")
 
 		// 打印服务状态信息
 		utils.PrintSeparator()
@@ -800,10 +802,15 @@ func startWebSocketServer(wsPort int) {
 func HttpCallback(Conn SunnyNet.ConnHTTP) {
 	host := ""
 	path := ""
-	if u, err := url.Parse(Conn.URL()); err == nil {
+	urlStr := Conn.URL()
+	if u, err := url.Parse(urlStr); err == nil {
 		host = u.Hostname()
 		path = u.Path
 	}
+
+	// 记录所有流量到控制台，用于确认代理是否生效
+	// 如果流量过大，建议正式版中改回 LogInfo
+	utils.Info("[拦截流量] Host=%s | Path=%s", host, path)
 
 	if Conn.Type() == public.HttpSendRequest {
 		// Conn.Request.Header.Set("Cache-Control", "no-cache")
@@ -998,11 +1005,11 @@ func HttpCallback(Conn SunnyNet.ConnHTTP) {
 				headers.Set("Access-Control-Allow-Headers", "Content-Type, X-Local-Auth")
 				// 若配置了允许的 Origin 且来路匹配，回显 origin
 				if cfg != nil && len(cfg.AllowedOrigins) > 0 {
-					origin := Conn.GetRequestHeader()["Origin"]
-					if len(origin) > 0 {
+					origin := nf_http.Header(Conn.GetRequestHeader()).Get("Origin")
+					if origin != "" {
 						for _, o := range cfg.AllowedOrigins {
-							if o == origin[0] {
-								headers.Set("Access-Control-Allow-Origin", origin[0])
+							if o == origin {
+								headers.Set("Access-Control-Allow-Origin", origin)
 								headers.Set("Vary", "Origin")
 								break
 							}
@@ -1083,11 +1090,7 @@ func HttpCallback(Conn SunnyNet.ConnHTTP) {
 		Body := Conn.GetResponseBody()
 		// 记录JS文件请求（调试用）
 		if strings.Contains(path, ".js") {
-			// Header is map[string][]string
-			contentType := ""
-			if ct := Conn.GetResponseHeader()["Content-Type"]; len(ct) > 0 {
-				contentType = strings.ToLower(ct[0])
-			}
+			contentType := strings.ToLower(Conn.GetResponseHeader().Get("Content-Type"))
 			utils.LogInfo("[响应] Path=%s | ContentType=%s", path, contentType)
 		}
 
@@ -1111,5 +1114,8 @@ func HttpCallback(Conn SunnyNet.ConnHTTP) {
 	}
 	if Conn.Type() == public.HttpRequestFail {
 		// 请求错误处理
+		if strings.Contains(host, "weixin.qq.com") {
+			utils.Warn("[请求失败] Host=%s | Path=%s", host, path)
+		}
 	}
 }

@@ -44,29 +44,21 @@ func (h *CommentHandler) HandleSaveCommentData(Conn SunnyNet.ConnHTTP) bool {
 	}
 
 	// 授权校验
+	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		auth := ""
-		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
-			auth = v[0]
-		}
+		auth := reqHeaders.Get("X-Local-Auth")
 		if auth != h.getConfig().SecretToken {
 			// 记录认证失败
 			clientIP := "unknown" // ConnHTTP interface doesn't expose RemoteAddr
 			utils.LogAuthFailed(path, clientIP)
-			headers := make(nf_http.Header)
-			headers.Set("Content-Type", "application/json")
-			headers.Set("X-Content-Type-Options", "nosniff")
-			Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
+			h.sendErrorResponse(Conn, fmt.Errorf("unauthorized"))
 			return true
 		}
 	}
 
 	// CORS校验
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := ""
-		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
-			origin = v[0]
-		}
+		origin := reqHeaders.Get("Origin")
 		if origin != "" {
 			allowed := false
 			for _, o := range h.getConfig().AllowedOrigins {
@@ -78,10 +70,7 @@ func (h *CommentHandler) HandleSaveCommentData(Conn SunnyNet.ConnHTTP) bool {
 			if !allowed {
 				// 记录CORS拦截
 				utils.LogCORSBlocked(origin, path)
-				headers := make(nf_http.Header)
-				headers.Set("Content-Type", "application/json")
-				headers.Set("X-Content-Type-Options", "nosniff")
-				Conn.StopRequest(403, `{"success":false,"error":"forbidden_origin"}`, headers)
+				h.sendErrorResponse(Conn, fmt.Errorf("forbidden_origin"))
 				return true
 			}
 		}
@@ -225,11 +214,9 @@ func (h *CommentHandler) sendEmptyResponse(Conn SunnyNet.ConnHTTP) {
 	headers.Set("X-Content-Type-Options", "nosniff")
 
 	// CORS
+	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := ""
-		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
-			origin = v[0]
-		}
+		origin := reqHeaders.Get("Origin")
 		if origin != "" {
 			for _, o := range h.getConfig().AllowedOrigins {
 				if o == origin {
@@ -254,11 +241,9 @@ func (h *CommentHandler) sendErrorResponse(Conn SunnyNet.ConnHTTP, err error) {
 	headers.Set("X-Content-Type-Options", "nosniff")
 
 	// CORS
+	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := ""
-		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
-			origin = v[0]
-		}
+		origin := reqHeaders.Get("Origin")
 		if origin != "" {
 			for _, o := range h.getConfig().AllowedOrigins {
 				if o == origin {

@@ -448,16 +448,12 @@ func (h *RecordHandler) HandleBatchDownloadStatus(Conn SunnyNet.ConnHTTP) bool {
 		return false
 	}
 
+	// 授权校验
+	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		auth := ""
-		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
-			auth = v[0]
-		}
+		auth := reqHeaders.Get("X-Local-Auth")
 		if auth != h.getConfig().SecretToken {
-			headers := make(nf_http.Header)
-			headers.Set("Content-Type", "application/json")
-			headers.Set("X-Content-Type-Options", "nosniff")
-			Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
+			h.sendJSONResponse(Conn, 401, []byte(`{"success":false,"error":"unauthorized"}`))
 			return true
 		}
 	}
@@ -533,6 +529,12 @@ func (h *RecordHandler) sendEmptyResponse(Conn SunnyNet.ConnHTTP) {
 
 // sendErrorResponse 发送错误响应
 func (h *RecordHandler) sendErrorResponse(Conn SunnyNet.ConnHTTP, err error) {
+	errorMsg := fmt.Sprintf(`{"success":false,"error":"%s"}`, err.Error())
+	h.sendJSONResponse(Conn, 500, []byte(errorMsg))
+}
+
+// sendJSONResponse 发送JSON响应
+func (h *RecordHandler) sendJSONResponse(Conn SunnyNet.ConnHTTP, code int, body []byte) {
 	headers := make(nf_http.Header)
 	headers.Set("Content-Type", "application/json")
 	headers.Set("X-Content-Type-Options", "nosniff")
@@ -552,6 +554,6 @@ func (h *RecordHandler) sendErrorResponse(Conn SunnyNet.ConnHTTP, err error) {
 			}
 		}
 	}
-	errorMsg := fmt.Sprintf(`{"success":false,"error":"%s"}`, err.Error())
-	Conn.StopRequest(500, errorMsg, headers)
+	headers.Set("__debug", "fake_resp")
+	Conn.StopRequest(code, string(body), headers)
 }

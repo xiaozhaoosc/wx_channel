@@ -1,0 +1,414 @@
+[2025-12-15 16:50:51] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-15 16:51:14] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt
+[2025-12-15 16:51:51] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-15 16:51:53] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-15 16:52:42] INFO [脚本注入] Home页面 - 注入视频缓存监控脚本
+[2025-12-15 16:52:42] INFO [页面加载] 视频号页面已加载 | Host=channels.weixin.qq.com | Path=/web/pages/home
+[2025-12-15 16:52:42] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/polyfills.publishBIJKoFig.js | ContentType=application/javascript
+[2025-12-15 16:52:42] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/polyfills.publishBIJKoFig.js
+[2025-12-15 16:52:42] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/index.publishDm-4yucR.js | ContentType=application/javascript
+[2025-12-15 16:52:42] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/index.publishDm-4yucR.js
+[2025-12-15 16:52:42] INFO [Home数据采集] 正在处理 index.publish 文件
+[2025-12-15 16:52:42] INFO [Home数据采集] 在index.publish中未找到 goToNextFlowFeed 函数
+[2025-12-15 16:52:42] INFO [Home数据采集] 在index.publish中未找到 goToPrevFlowFeed 函数
+[2025-12-15 16:52:42] INFO [响应] Path=/t/wx_fed/cdn_libs/res/libpag/4.3.48/libpag.min.js | ContentType=application/javascript
+[2025-12-15 16:52:42] INFO [JS文件] /t/wx_fed/cdn_libs/res/libpag/4.3.48/libpag.min.js
+[2025-12-15 16:52:42] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/worker-client.publishDCAVeJGh.js | ContentType=application/javascript
+[2025-12-15 16:52:42] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/worker-client.publishDCAVeJGh.js
+[2025-12-15 16:52:42] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/v4.publishSoommWqA.js | ContentType=application/javascript
+[2025-12-15 16:52:42] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/v4.publishSoommWqA.js
+[2025-12-15 16:52:42] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/virtual_svg-icons-register.publishBKaZ_Qvt.js | ContentType=application/javascript
+[2025-12-15 16:52:42] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/virtual_svg-icons-register.publishBKaZ_Qvt.js
+[2025-12-15 16:52:42] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/base64.publishBPCV-iIx.js | ContentType=application/javascript
+[2025-12-15 16:52:42] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/base64.publishBPCV-iIx.js
+[2025-12-15 16:52:42] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/global.publishCqI9Us2l.js | ContentType=application/javascript
+[2025-12-15 16:52:42] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/global.publishCqI9Us2l.js
+[2025-12-15 16:52:42] INFO [Home数据采集] 正在处理 global.publish 文件
+[2025-12-15 16:52:42] INFO [Home数据采集] 在global.publish中未找到 goToNextFlowFeed 函数
+[2025-12-15 16:52:42] INFO [Home数据采集] 在global.publish中未找到 goToPrevFlowFeed 函数
+[2025-12-15 16:52:42] INFO [视频详情] 视频详情API已拦截 | Path=/t/wx_fed/finder/web/web-finder/res/js/virtual_svg-icons-register.publishBKaZ_Qvt.js
+[2025-12-15 16:52:42] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/queue.publishUShipsGv.js | ContentType=application/javascript
+[2025-12-15 16:52:42] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/queue.publishUShipsGv.js
+[2025-12-15 16:52:42] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/theme.publishD3dLNXhN.js | ContentType=application/javascript
+[2025-12-15 16:52:42] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/theme.publishD3dLNXhN.js
+[2025-12-15 16:52:42] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/connect.publishC-UZvZ9_.js | ContentType=application/javascript
+[2025-12-15 16:52:42] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/connect.publishC-UZvZ9_.js
+[2025-12-15 16:52:42] INFO [Home数据采集] ✅ 正在处理 connect.publish 文件（可能是新的状态管理文件）
+[2025-12-15 16:52:42] INFO [Home数据采集] ✅ 在connect.publish中成功拦截 goToNextFlowFeed 函数
+[2025-12-15 16:52:42] INFO [Home数据采集] ✅ 在connect.publish中成功拦截 goToPrevFlowFeed 函数
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/ContextMenu.publishBjKoGJF_.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/ContextMenu.publishBjKoGJF_.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/contextMenu.publishDhPHNCgJ.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/contextMenu.publishDhPHNCgJ.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/FinderHome.publishBPjmStkh.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/FinderHome.publishBPjmStkh.js
+[2025-12-15 16:52:43] INFO [Home数据采集] 🎯 正在处理 FinderHome.publish 文件（Home页面主逻辑文件）
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/GlobalContextMenu.publishX7BTpBbE.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/GlobalContextMenu.publishX7BTpBbE.js
+[2025-12-15 16:52:43] INFO [Home数据采集] ❌ 在FinderHome.publish中未找到 goToNextFlowFeed 函数
+[2025-12-15 16:52:43] INFO [Home数据采集] ❌ 在FinderHome.publish中未找到 goToPrevFlowFeed 函数
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/Avatar.publishC3E8cmU5.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/Avatar.publishC3E8cmU5.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/FriendLike.vue_vue_type_style_index_1_lang.publishjckVdBs2.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/FriendLike.vue_vue_type_style_index_1_lang.publishjckVdBs2.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/useMerlinPage.publishx4UrCyUt.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/useMerlinPage.publishx4UrCyUt.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/UserText.publishBhKxUSOo.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/UserText.publishBhKxUSOo.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/AuthorObjectCard.vue_vue_type_style_index_1_lang.publishCx_nI7HH.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/AuthorObjectCard.vue_vue_type_style_index_1_lang.publishCx_nI7HH.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/ListLayout.vue_vue_type_style_index_0_scoped_855491aa_lang.publishC3bX3t7a.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/ListLayout.vue_vue_type_style_index_0_scoped_855491aa_lang.publishC3bX3t7a.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/index.publishCoIz_FD0.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/index.publishCoIz_FD0.js
+[2025-12-15 16:52:43] INFO [Home数据采集] 正在处理 index.publish 文件
+[2025-12-15 16:52:43] INFO [Home数据采集] 在index.publish中未找到 goToNextFlowFeed 函数
+[2025-12-15 16:52:43] INFO [Home数据采集] 在index.publish中未找到 goToPrevFlowFeed 函数
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/LiveCard.vue_vue_type_style_index_1_lang.publishC9tqxN_w.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/LiveCard.vue_vue_type_style_index_1_lang.publishC9tqxN_w.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/index.esm.publishDfsSkwk2.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/index.esm.publishDfsSkwk2.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/directive.publishDJ3BgH3S.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/directive.publishDJ3BgH3S.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/useContextMenu.publishB_NGsLqc.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/useContextMenu.publishB_NGsLqc.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/LiveStatBox.publishDSIythuB.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/LiveStatBox.publishDSIythuB.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/mouseEvent.publishfbWNpFXD.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/mouseEvent.publishfbWNpFXD.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/AccountMenu.publishC7ZqoRhQ.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/AccountMenu.publishC7ZqoRhQ.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/LoadingIcon.publishD5PSEeUu.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/LoadingIcon.publishD5PSEeUu.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/NoMore.publish0eNHZ7DA.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/NoMore.publish0eNHZ7DA.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/useLongList.publishBy18by1d.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/useLongList.publishBy18by1d.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/LikeList.publish7xhhq9Cv.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/LikeList.publish7xhhq9Cv.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/LiveCard.publishDxXNSkq0.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/LiveCard.publishDxXNSkq0.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/FinderFeedCard.publishBsrgCwYO.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/FinderFeedCard.publishBsrgCwYO.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/AuthorInfo.publishBPH9d-by.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/AuthorInfo.publishBPH9d-by.js
+[2025-12-15 16:52:43] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/useFillHeight.publishCsAqZImY.js | ContentType=application/javascript
+[2025-12-15 16:52:43] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/useFillHeight.publishCsAqZImY.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/DanmakuWand.publish0_1IpIzz.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/DanmakuWand.publish0_1IpIzz.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/Preview.publishBU5EDcnQ.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/Preview.publishBU5EDcnQ.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/FeedNoticeCard.publishCzZ8zt3J.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/FeedNoticeCard.publishCzZ8zt3J.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/StatBox.publishBxBseDij.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/StatBox.publishBxBseDij.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/liveNoticeBtn.publishCMHrQHOf.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/liveNoticeBtn.publishCMHrQHOf.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/video.es.publishZxJTptQ3.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/video.es.publishZxJTptQ3.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/profile.publishCEPqcQGQ.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/profile.publishCEPqcQGQ.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/FeedAuthIcon.publishBmNUZW0T.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/FeedAuthIcon.publishBmNUZW0T.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/ProfileFeedPreviewCard.publishCNpC1c5I.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/ProfileFeedPreviewCard.publishCNpC1c5I.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/feed.publishazmhtc2k.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/feed.publishazmhtc2k.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/IconThumb.vue_vue_type_script_setup_true_lang.publishiHGq0ybC.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/IconThumb.vue_vue_type_script_setup_true_lang.publishiHGq0ybC.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/index.publishBC_vWOeb.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/index.publishBC_vWOeb.js
+[2025-12-15 16:52:44] INFO [Home数据采集] 正在处理 index.publish 文件
+[2025-12-15 16:52:44] INFO [Home数据采集] 在index.publish中未找到 goToNextFlowFeed 函数
+[2025-12-15 16:52:44] INFO [Home数据采集] 在index.publish中未找到 goToPrevFlowFeed 函数
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/WfPopover.publishCut1ZKYT.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/WfPopover.publishCut1ZKYT.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/productLink.publishCvryZj4x.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/productLink.publishCvryZj4x.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/floatPop.publishCHMMivtc.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/floatPop.publishCHMMivtc.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/EmojiPanel.publishDEdDEd-S.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/EmojiPanel.publishDEdDEd-S.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/FriendLike.publishBpZgNIbU.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/FriendLike.publishBpZgNIbU.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/PrimaryButton.publishCEE5zn1T.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/PrimaryButton.publishCEE5zn1T.js
+[2025-12-15 16:52:44] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/generalWarningMsg.publishCF4SFZeh.js | ContentType=application/javascript
+[2025-12-15 16:52:44] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/generalWarningMsg.publishCF4SFZeh.js
+[2025-12-15 16:52:45] INFO [响应] Path=/t/wx_fed/cdn_libs/res/decrypt-video-core/1.3.0/wasm_video_decode.js | ContentType=application/javascript
+[2025-12-15 16:52:45] INFO [JS文件] /t/wx_fed/cdn_libs/res/decrypt-video-core/1.3.0/wasm_video_decode.js
+[2025-12-15 16:52:45] INFO [响应] Path=/t/wx_fed/cdn_libs/res/decrypt-video-core/1.3.0/worker_release.js | ContentType=application/javascript
+[2025-12-15 16:52:45] INFO [JS文件] /t/wx_fed/cdn_libs/res/decrypt-video-core/1.3.0/worker_release.js
+[2025-12-15 16:52:55] INFO [Profile API] 收到视频信息请求
+[2025-12-15 16:52:55] INFO [分辨率] 从media获取: 1080x1920
+[2025-12-15 16:52:55] INFO [视频信息] ID=14811825976262461731 | 标题=好多小伙伴都是通过王者十周年我COS的安琪拉宝宝认识我的，非常感谢王者官方给我的这次机会🥺！大家都是通过什么认识喜欢我的呢？#小丑冰冰 #被小丑冰冰可爱到了 #安琪拉 | 作者=小丑冰冰冰 | 大小=9.71MB | URL=https://finder.video.qq.com/251/20302/stodownload?encfilekey=Cvvj5Ix3eez3Y79SxtvVL0L7CkPM6dFibusn4vVFEyiar9tjibbic736UqJHT1lWOZRUmO21G45SCiatibibOLK17o9UZRDLk6nyqjPzRVYiaAYkliblPSYPQuSibzp7s1DU2BKaQKgxrK2qSrkSkL4qG4oTQia4g&hy=SZ&idx=1&m=ce9b7b1d744ce5b2eac5faeda032fa03&uzid=7a1ca&token=ic1n0xDG6awibsh2XVhZmkf3QDTfw4qt0IBV5gdy5ccibkDkbe4jYTuhvISIVibibN5S3J4R9cWXib5WhaMXibKhI8g7kn6Z32PQzBIH1aGiaeCRg3La0hAyicibpg4UoRltOQn1kDQNR6Mw4ZR9mFjWpSK41qcE7dfzuFZnhZOib9Ahauw0vA&basedata=CAESABoDeFYwIgAqBwjNWhAAGAI&sign=zEdDL1pt4o7Bxf1qWCd1vkmqXfBB_0-zTRanHVC797tc96OQzXzLRrf0yX6IOJxNQC3DMHNMKAWqJr2Pc9Wszg&web=1&extg=10f0000&svrbypass=AAuL%2FQsFAAABAAAAAABrIiDQlwMnAluOSrw%2FaRAAAADnaHZTnGbFfAj9RgZXfw6VGRAe2cVcTjLIIPTpqiF%2Fmj1JXayC3p9s8QNDbrNfX7tRtxP4RsPDBeg%3D&svrnonce=1765784650 | Key=880013297 | 分辨率=1080x1920
+[2025-12-15 16:52:56] INFO [Profile API] 收到视频信息请求
+[2025-12-15 16:52:56] INFO [分辨率] 从media获取: 1080x1920
+[2025-12-15 16:52:56] INFO [视频信息] ID=14628450583192995943 | 标题=所以杭漂的尽头是什么#内容过于真实#杭漂#精神状态belike | 作者=一条小何Pro | 大小=144.81MB | URL=https://finder.video.qq.com/251/20302/stodownload?encfilekey=Cvvj5Ix3eewK0tHtibORqcsqchXNh0Gf3sJcaYqC2rQCL0WDFxvf5dTJNqicfRIJicQicGNlzx1uKMbY4hGvAV7WUErtJU4tQrAENIfvkm45LFsfv2CylKMv1ennJn0p45zv&bizid=1023&dotrans=0&hy=SH&idx=1&m=&uzid=7a1ac&token=AxricY7RBHdVqmWN6WVGpetbZqF85o2cRTonlSKWGvO1DB6qrhxrARib1e822Qh2ibH8ckDl0GSBfdM2Vm30D0QPib6eKABmb7k3GZkdV04hCp5363yAbdlskmB2KalUypnIk4ptgCu5JNticWXqsOT6Eic5GqjClurzia9I5usrArTChw&basedata=CAESABoDeFYwIgAqBwjNWhAAGAI&sign=6BSVSpwWL61ar8p1FqcXq68MefFLOTq9eYfJ_IP5fKugvigIqORlsSUfY8VAOEXwp14EAZL3ZyYcFTPBNtKeUw&web=1&extg=10f0000&svrbypass=AAuL%2FQsFAAABAAAAAADu2I%2FaX3wEpldpSrw%2FaRAAAADnaHZTnGbFfAj9RgZXfw6VGRAe2cVcTnbKcIjdxAY5nD1JXayC3p9s8TxOFT6iiXZZmZ%2BB0zYe0%2Fg%3D&svrnonce=1765784650 | Key=56542314 | 分辨率=1080x1920
+[2025-12-15 16:54:00] INFO [响应] Path=/tmpl/ou/sw.js | ContentType=application/javascript
+[2025-12-15 16:54:00] INFO [JS文件] /tmpl/ou/sw.js
+[2025-12-15 16:54:49] INFO [Profile API] 收到视频信息请求
+[2025-12-15 16:54:49] INFO [分辨率] 从media获取: 1080x1920
+[2025-12-15 16:54:49] INFO [视频信息] ID=14811825976262461731 | 标题=好多小伙伴都是通过王者十周年我COS的安琪拉宝宝认识我的，非常感谢王者官方给我的这次机会🥺！大家都是通过什么认识喜欢我的呢？#小丑冰冰 #被小丑冰冰可爱到了 #安琪拉 | 作者=小丑冰冰冰 | 大小=9.71MB | URL=https://finder.video.qq.com/251/20302/stodownload?encfilekey=Cvvj5Ix3eez3Y79SxtvVL0L7CkPM6dFibusn4vVFEyiar9tjibbic736UqJHT1lWOZRUmO21G45SCiatibibOLK17o9UZRDLk6nyqjPzRVYiaAYkliblPSYPQuSibzp7s1DU2BKaQKgxrK2qSrkSkL4qG4oTQia4g&hy=SZ&idx=1&m=ce9b7b1d744ce5b2eac5faeda032fa03&uzid=7a1ca&token=ic1n0xDG6awibsh2XVhZmkf3QDTfw4qt0IBV5gdy5ccibkDkbe4jYTuhvISIVibibN5S3J4R9cWXib5WhaMXibKhI8g7kn6Z32PQzBIH1aGiaeCRg3La0hAyicibpg4UoRltOQn1kDQNR6Mw4ZR9mFjWpSK41qcE7dfzuFZnhZOib9Ahauw0vA&basedata=CAESABoDeFYwIgAqBwjNWhAAGAI&sign=zEdDL1pt4o7Bxf1qWCd1vkmqXfBB_0-zTRanHVC797tc96OQzXzLRrf0yX6IOJxNQC3DMHNMKAWqJr2Pc9Wszg&web=1&extg=10f0000&svrbypass=AAuL%2FQsFAAABAAAAAABrIiDQlwMnAluOSrw%2FaRAAAADnaHZTnGbFfAj9RgZXfw6VGRAe2cVcTjLIIPTpqiF%2Fmj1JXayC3p9s8QNDbrNfX7tRtxP4RsPDBeg%3D&svrnonce=1765784650 | Key=880013297 | 分辨率=1080x1920
+[2025-12-15 16:55:02] INFO [Profile API] 收到视频信息请求
+[2025-12-15 16:55:02] INFO [分辨率] 从media获取: 1080x1920
+[2025-12-15 16:55:02] INFO [视频信息] ID=14596987258370983973 | 标题=女人的腿短与腿的长短无关 | 作者=我是王百圆 | 大小=42.37MB | URL=https://finder.video.qq.com/251/20302/stodownload?encfilekey=Cvvj5Ix3eewK0tHtibORqcsqchXNh0Gf3sJcaYqC2rQBHqaB0hqKhQcibPGlEticfuEdS59dJjC4ibHv6aobxMfhX7f2m7WZ8Qic2jVzy4YJVicbUJwWQWibYt8s0MYzhiaCJPsO&bizid=1023&dotrans=0&hy=SH&idx=1&m=&uzid=1&token=2lt8WBSnjTlibv4f8VeibXHxqffIpUYo2ib0wicSXUQS2KRMJvzliaP7ObBqCqSSnkWGFSsocgxY8AR6AwpsJ2L514UUdPp7JRvZbBh9YacwBo8JsbYqhUR1HldicT1Sfkn6dHXgWicicxlRPS2gtA5S4JP2uQ3pv042I6AkDEA4d3xgh6E&basedata=CAESABoDeFYwIgAqBwjNWhAAGAI&sign=EWMMoRcOfOt1xPtT3LZSLmh789U0Eh4jAEBSGZV-HIvYOP6zd2wU9sv5Y7hqz8r1pv4w4UzJb1EQho3c5ZeZ4w&web=1&extg=10f0000&svrbypass=AAuL%2FQsFAAABAAAAAAA%2FDQjejy1Zl0VeSrw%2FaRAAAADnaHZTnGbFfAj9RgZXfw6VGRAe2cVcTjTKULS%2B3xBxnT1JXayC3p9s8b%2FKk95PPIVIW7FzP5TJLBs%3D&svrnonce=1765784650 | Key=2001022396 | 分辨率=1080x1920
+[2025-12-15 17:01:56] INFO [CSV操作] 成功 | 操作=添加记录 | ID=14811825976262461731 | 标题=好多小伙伴都是通过王者十周年我COS的安琪拉宝宝认识我的，非常感谢王者官方给我的这次机会🥺！大家都是通过什么认识喜欢我的呢？#小丑冰冰 #被小丑冰冰可爱到了 #安琪拉
+[2025-12-15 17:03:00] INFO [响应] Path=/tmpl/ou/sw.js | ContentType=application/javascript
+[2025-12-15 17:03:00] INFO [JS文件] /tmpl/ou/sw.js
+[2025-12-15 17:04:00] INFO [响应] Path=/tmpl/ou/sw.js | ContentType=application/javascript
+[2025-12-15 17:04:00] INFO [JS文件] /tmpl/ou/sw.js
+[2025-12-15 17:05:00] INFO [响应] Path=/tmpl/ou/sw.js | ContentType=application/javascript
+[2025-12-15 17:05:00] INFO [JS文件] /tmpl/ou/sw.js
+[2025-12-15 17:06:56] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt
+[2025-12-15 17:41:37] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-15 17:41:38] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-15 17:41:42] INFO [响应] Path=/js/core.js | ContentType=text/html
+[2025-12-15 17:41:42] INFO [响应] Path=/js/ui.js | ContentType=text/html
+[2025-12-15 17:41:42] INFO [响应] Path=/js/pages-browse.js | ContentType=text/html
+[2025-12-15 17:41:42] INFO [响应] Path=/js/video-player.js | ContentType=text/html
+[2025-12-15 17:41:42] INFO [响应] Path=/js/pages-settings.js | ContentType=text/html
+[2025-12-15 17:41:42] INFO [响应] Path=/js/pages-download.js | ContentType=text/html
+[2025-12-15 17:41:48] INFO [响应] Path=/js/core.js | ContentType=text/html
+[2025-12-15 17:41:48] INFO [响应] Path=/js/ui.js | ContentType=text/html
+[2025-12-15 17:41:48] INFO [响应] Path=/js/pages-settings.js | ContentType=text/html
+[2025-12-15 17:41:48] INFO [响应] Path=/js/pages-download.js | ContentType=text/html
+[2025-12-15 17:41:48] INFO [响应] Path=/js/pages-browse.js | ContentType=text/html
+[2025-12-15 17:41:48] INFO [响应] Path=/js/video-player.js | ContentType=text/html
+[2025-12-15 17:42:01] INFO [响应] Path=/js/core.js | ContentType=text/html
+[2025-12-15 17:42:01] INFO [响应] Path=/js/pages-download.js | ContentType=text/html
+[2025-12-15 17:42:01] INFO [响应] Path=/js/ui.js | ContentType=text/html
+[2025-12-15 17:42:01] INFO [响应] Path=/js/pages-browse.js | ContentType=text/html
+[2025-12-15 17:42:01] INFO [响应] Path=/js/pages-settings.js | ContentType=text/html
+[2025-12-15 17:42:01] INFO [响应] Path=/js/video-player.js | ContentType=text/html
+[2025-12-15 17:42:02] INFO [响应] Path=/js/pages-browse.js | ContentType=text/html
+[2025-12-15 17:42:02] INFO [响应] Path=/js/pages-settings.js | ContentType=text/html
+[2025-12-15 17:42:02] INFO [响应] Path=/js/ui.js | ContentType=text/html
+[2025-12-15 17:42:02] INFO [响应] Path=/js/core.js | ContentType=text/html
+[2025-12-15 17:42:02] INFO [响应] Path=/js/pages-download.js | ContentType=text/html
+[2025-12-15 17:42:02] INFO [响应] Path=/js/video-player.js | ContentType=text/html
+[2025-12-15 17:42:48] INFO [响应] Path=/js/core.js | ContentType=text/html
+[2025-12-15 17:42:48] INFO [响应] Path=/js/pages-download.js | ContentType=text/html
+[2025-12-15 17:42:48] INFO [响应] Path=/js/ui.js | ContentType=text/html
+[2025-12-15 17:42:48] INFO [响应] Path=/js/pages-browse.js | ContentType=text/html
+[2025-12-15 17:42:48] INFO [响应] Path=/js/pages-settings.js | ContentType=text/html
+[2025-12-15 17:42:48] INFO [响应] Path=/js/video-player.js | ContentType=text/html
+[2025-12-15 17:43:04] INFO [响应] Path=/js/core.js | ContentType=text/html
+[2025-12-15 17:43:04] INFO [响应] Path=/js/pages-download.js | ContentType=text/html
+[2025-12-15 17:43:04] INFO [响应] Path=/js/pages-browse.js | ContentType=text/html
+[2025-12-15 17:43:04] INFO [响应] Path=/js/ui.js | ContentType=text/html
+[2025-12-15 17:43:04] INFO [响应] Path=/js/pages-settings.js | ContentType=text/html
+[2025-12-15 17:43:04] INFO [响应] Path=/js/video-player.js | ContentType=text/html
+[2025-12-15 17:44:14] INFO [响应] Path=/js/core.js | ContentType=text/html
+[2025-12-15 17:44:14] INFO [响应] Path=/js/pages-browse.js | ContentType=text/html
+[2025-12-15 17:44:14] INFO [响应] Path=/js/ui.js | ContentType=text/html
+[2025-12-15 17:44:14] INFO [响应] Path=/js/pages-settings.js | ContentType=text/html
+[2025-12-15 17:44:14] INFO [响应] Path=/js/pages-download.js | ContentType=text/html
+[2025-12-15 17:44:14] INFO [响应] Path=/js/video-player.js | ContentType=text/html
+[2025-12-15 17:44:14] INFO [响应] Path=/js/ui.js | ContentType=text/html
+[2025-12-15 17:44:14] INFO [响应] Path=/js/core.js | ContentType=text/html
+[2025-12-15 17:44:14] INFO [响应] Path=/js/pages-download.js | ContentType=text/html
+[2025-12-15 17:44:14] INFO [响应] Path=/js/pages-browse.js | ContentType=text/html
+[2025-12-15 17:44:14] INFO [响应] Path=/js/pages-settings.js | ContentType=text/html
+[2025-12-15 17:44:14] INFO [响应] Path=/js/video-player.js | ContentType=text/html
+[2025-12-15 18:05:03] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt
+[2025-12-29 17:22:15] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-29 17:22:20] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-29 17:25:55] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt
+[2025-12-30 10:48:16] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-30 10:48:19] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-30 10:48:22] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt
+[2025-12-30 13:35:13] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-30 13:35:17] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-30 13:40:45] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt
+[2025-12-30 13:40:56] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-30 13:40:59] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-30 13:42:11] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: terminated
+[2025-12-30 13:44:16] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-30 13:44:33] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: terminated
+[2025-12-30 13:45:09] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-30 13:45:11] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-30 13:50:27] INFO [脚本注入] Home页面 - 注入视频缓存监控脚本
+[2025-12-30 13:50:47] INFO [脚本注入] Home页面 - 注入视频缓存监控脚本
+[2025-12-30 13:50:55] INFO [页面加载] 视频号页面已加载 | Host=channels.weixin.qq.com | Path=/web/pages/home
+[2025-12-30 13:50:55] INFO [页面加载] 视频号页面已加载 | Host=channels.weixin.qq.com | Path=/web/pages/home
+[2025-12-30 13:50:55] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/base64.publishBPCV-iIx.js | ContentType=application/javascript
+[2025-12-30 13:50:55] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/base64.publishBPCV-iIx.js
+[2025-12-30 13:50:55] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/queue.publishUShipsGv.js | ContentType=application/javascript
+[2025-12-30 13:50:55] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/queue.publishUShipsGv.js
+[2025-12-30 13:50:55] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/index.publishDm-4yucR.js | ContentType=application/javascript
+[2025-12-30 13:50:55] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/index.publishDm-4yucR.js
+[2025-12-30 13:50:55] INFO [Home数据采集] 正在处理 index.publish 文件
+[2025-12-30 13:50:55] INFO [Home数据采集] 在index.publish中未找到 goToNextFlowFeed 函数
+[2025-12-30 13:50:55] INFO [Home数据采集] 在index.publish中未找到 goToPrevFlowFeed 函数
+[2025-12-30 13:50:55] INFO [响应] Path=/t/wx_fed/cdn_libs/res/libpag/4.3.48/libpag.min.js | ContentType=application/javascript
+[2025-12-30 13:50:55] INFO [JS文件] /t/wx_fed/cdn_libs/res/libpag/4.3.48/libpag.min.js
+[2025-12-30 13:50:55] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/worker-client.publishDCAVeJGh.js | ContentType=application/javascript
+[2025-12-30 13:50:55] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/worker-client.publishDCAVeJGh.js
+[2025-12-30 13:50:55] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/polyfills.publishBIJKoFig.js | ContentType=application/javascript
+[2025-12-30 13:50:55] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/polyfills.publishBIJKoFig.js
+[2025-12-30 13:50:55] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/v4.publishSoommWqA.js | ContentType=application/javascript
+[2025-12-30 13:50:55] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/v4.publishSoommWqA.js
+[2025-12-30 13:50:55] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/global.publishCqI9Us2l.js | ContentType=application/javascript
+[2025-12-30 13:50:55] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/global.publishCqI9Us2l.js
+[2025-12-30 13:50:55] INFO [Home数据采集] 正在处理 global.publish 文件
+[2025-12-30 13:50:55] INFO [Home数据采集] 在global.publish中未找到 goToNextFlowFeed 函数
+[2025-12-30 13:50:55] INFO [Home数据采集] 在global.publish中未找到 goToPrevFlowFeed 函数
+[2025-12-30 13:50:55] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/virtual_svg-icons-register.publishBKaZ_Qvt.js | ContentType=application/javascript
+[2025-12-30 13:50:55] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/virtual_svg-icons-register.publishBKaZ_Qvt.js
+[2025-12-30 13:50:55] INFO [视频详情] 视频详情API已拦截 | Path=/t/wx_fed/finder/web/web-finder/res/js/virtual_svg-icons-register.publishBKaZ_Qvt.js
+[2025-12-30 13:50:55] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/theme.publishD3dLNXhN.js | ContentType=application/javascript
+[2025-12-30 13:50:55] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/theme.publishD3dLNXhN.js
+[2025-12-30 13:50:55] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/connect.publishC-UZvZ9_.js | ContentType=application/javascript
+[2025-12-30 13:50:55] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/connect.publishC-UZvZ9_.js
+[2025-12-30 13:50:55] INFO [Home数据采集] ✅ 正在处理 connect.publish 文件（可能是新的状态管理文件）
+[2025-12-30 13:50:55] INFO [Home数据采集] ✅ 在connect.publish中成功拦截 goToNextFlowFeed 函数
+[2025-12-30 13:50:55] INFO [Home数据采集] ✅ 在connect.publish中成功拦截 goToPrevFlowFeed 函数
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/GlobalContextMenu.publishX7BTpBbE.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/GlobalContextMenu.publishX7BTpBbE.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/Avatar.publishC3E8cmU5.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/Avatar.publishC3E8cmU5.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/FinderHome.publishBPjmStkh.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/FinderHome.publishBPjmStkh.js
+[2025-12-30 13:50:56] INFO [Home数据采集] 🎯 正在处理 FinderHome.publish 文件（Home页面主逻辑文件）
+[2025-12-30 13:50:56] INFO [Home数据采集] ❌ 在FinderHome.publish中未找到 goToNextFlowFeed 函数
+[2025-12-30 13:50:56] INFO [Home数据采集] ❌ 在FinderHome.publish中未找到 goToPrevFlowFeed 函数
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/contextMenu.publishDhPHNCgJ.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/contextMenu.publishDhPHNCgJ.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/ContextMenu.publishBjKoGJF_.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/ContextMenu.publishBjKoGJF_.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/FriendLike.vue_vue_type_style_index_1_lang.publishjckVdBs2.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/FriendLike.vue_vue_type_style_index_1_lang.publishjckVdBs2.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/UserText.publishBhKxUSOo.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/UserText.publishBhKxUSOo.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/AuthorObjectCard.vue_vue_type_style_index_1_lang.publishCx_nI7HH.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/AuthorObjectCard.vue_vue_type_style_index_1_lang.publishCx_nI7HH.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/ListLayout.vue_vue_type_style_index_0_scoped_855491aa_lang.publishC3bX3t7a.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/ListLayout.vue_vue_type_style_index_0_scoped_855491aa_lang.publishC3bX3t7a.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/useMerlinPage.publishx4UrCyUt.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/useMerlinPage.publishx4UrCyUt.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/LiveCard.vue_vue_type_style_index_1_lang.publishC9tqxN_w.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/LiveCard.vue_vue_type_style_index_1_lang.publishC9tqxN_w.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/index.publishCoIz_FD0.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/index.publishCoIz_FD0.js
+[2025-12-30 13:50:56] INFO [Home数据采集] 正在处理 index.publish 文件
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/useContextMenu.publishB_NGsLqc.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/useContextMenu.publishB_NGsLqc.js
+[2025-12-30 13:50:56] INFO [Home数据采集] 在index.publish中未找到 goToNextFlowFeed 函数
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/index.esm.publishDfsSkwk2.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/index.esm.publishDfsSkwk2.js
+[2025-12-30 13:50:56] INFO [Home数据采集] 在index.publish中未找到 goToPrevFlowFeed 函数
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/directive.publishDJ3BgH3S.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/directive.publishDJ3BgH3S.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/LiveStatBox.publishDSIythuB.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/LiveStatBox.publishDSIythuB.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/LoadingIcon.publishD5PSEeUu.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/LoadingIcon.publishD5PSEeUu.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/NoMore.publish0eNHZ7DA.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/NoMore.publish0eNHZ7DA.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/useLongList.publishBy18by1d.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/useLongList.publishBy18by1d.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/AccountMenu.publishC7ZqoRhQ.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/AccountMenu.publishC7ZqoRhQ.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/mouseEvent.publishfbWNpFXD.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/mouseEvent.publishfbWNpFXD.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/useFillHeight.publishCsAqZImY.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/useFillHeight.publishCsAqZImY.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/Preview.publishBU5EDcnQ.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/Preview.publishBU5EDcnQ.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/FinderFeedCard.publishBsrgCwYO.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/FinderFeedCard.publishBsrgCwYO.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/AuthorInfo.publishBPH9d-by.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/AuthorInfo.publishBPH9d-by.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/LiveCard.publishDxXNSkq0.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/LiveCard.publishDxXNSkq0.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/liveNoticeBtn.publishCMHrQHOf.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/liveNoticeBtn.publishCMHrQHOf.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/DanmakuWand.publish0_1IpIzz.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/DanmakuWand.publish0_1IpIzz.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/FeedNoticeCard.publishCzZ8zt3J.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/FeedNoticeCard.publishCzZ8zt3J.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/StatBox.publishBxBseDij.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/StatBox.publishBxBseDij.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/video.es.publishZxJTptQ3.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/video.es.publishZxJTptQ3.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/profile.publishCEPqcQGQ.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/profile.publishCEPqcQGQ.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/feed.publishazmhtc2k.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/feed.publishazmhtc2k.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/FeedAuthIcon.publishBmNUZW0T.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/FeedAuthIcon.publishBmNUZW0T.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/ProfileFeedPreviewCard.publishCNpC1c5I.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/ProfileFeedPreviewCard.publishCNpC1c5I.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/IconThumb.vue_vue_type_script_setup_true_lang.publishiHGq0ybC.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/IconThumb.vue_vue_type_script_setup_true_lang.publishiHGq0ybC.js
+[2025-12-30 13:50:56] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/index.publishBC_vWOeb.js | ContentType=application/javascript
+[2025-12-30 13:50:56] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/index.publishBC_vWOeb.js
+[2025-12-30 13:50:56] INFO [Home数据采集] 正在处理 index.publish 文件
+[2025-12-30 13:50:56] INFO [Home数据采集] 在index.publish中未找到 goToNextFlowFeed 函数
+[2025-12-30 13:50:56] INFO [Home数据采集] 在index.publish中未找到 goToPrevFlowFeed 函数
+[2025-12-30 13:50:57] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/WfPopover.publishCut1ZKYT.js | ContentType=application/javascript
+[2025-12-30 13:50:57] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/WfPopover.publishCut1ZKYT.js
+[2025-12-30 13:50:57] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/productLink.publishCvryZj4x.js | ContentType=application/javascript
+[2025-12-30 13:50:57] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/productLink.publishCvryZj4x.js
+[2025-12-30 13:50:57] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/floatPop.publishCHMMivtc.js | ContentType=application/javascript
+[2025-12-30 13:50:57] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/floatPop.publishCHMMivtc.js
+[2025-12-30 13:50:57] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/EmojiPanel.publishDEdDEd-S.js | ContentType=application/javascript
+[2025-12-30 13:50:57] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/EmojiPanel.publishDEdDEd-S.js
+[2025-12-30 13:50:57] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/generalWarningMsg.publishCF4SFZeh.js | ContentType=application/javascript
+[2025-12-30 13:50:57] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/generalWarningMsg.publishCF4SFZeh.js
+[2025-12-30 13:50:57] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/FriendLike.publishBpZgNIbU.js | ContentType=application/javascript
+[2025-12-30 13:50:57] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/FriendLike.publishBpZgNIbU.js
+[2025-12-30 13:50:57] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/LikeList.publish7xhhq9Cv.js | ContentType=application/javascript
+[2025-12-30 13:50:57] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/LikeList.publish7xhhq9Cv.js
+[2025-12-30 13:50:58] INFO [响应] Path=/t/wx_fed/finder/web/web-finder/res/js/PrimaryButton.publishCEE5zn1T.js | ContentType=application/javascript
+[2025-12-30 13:50:58] INFO [JS文件] /t/wx_fed/finder/web/web-finder/res/js/PrimaryButton.publishCEE5zn1T.js
+[2025-12-30 13:51:08] INFO [Profile API] 收到视频信息请求
+[2025-12-30 13:51:08] INFO [分辨率] 从media获取: 480x852
+[2025-12-30 13:51:08] INFO [视频信息] ID=14772724617977403635 | 标题=马超悲剧：200口家被屠，仇没报郁郁而终#三国 #三国演义 #历史 #历史人物 #马超 | 作者=伪善历史1 | 大小=9.64MB | URL=https://finder.video.qq.com/251/20302/stodownload?encfilekey=Cvvj5Ix3eez3Y79SxtvVL0L7CkPM6dFibusn4vVFEyiapj9UQ7vWcUPibeLNIQV862jpax1loO7BheYFd2qsSkqWuzobLeyHNqnB8ms2doPQG8icFor3pdnoPHjnoaJSHPf2hEtRoQklbr9nHRukHNOx6Q&hy=SZ&idx=1&m=2076bf2b625481d7138aa029e0ca827b&uzid=7a198&token=2lt8WBSnjTnwusxB8tr3xUKwefQQhiciaXRKAn2vYPicvpSE72RQFjaibzic5lpCEUxU0BljW7fv8jDmaRBhA9RIYcjZ5RylXksDhogLuK1hZfibSXBeml6PjtickEIgsOlrhwPbGKdvvBzMuCiap4emicU2rqyogC6cweib477uHVeaxnyFc&basedata=CAESABoDeFYwIgAqBwjNWhAAGAI&sign=oZnCcsbqYPPKzGbwpXrLxijqyPLc-YKFL6rOz-8tNLbl4f4L5lFHKMVMeHNrNiarqmFEv1AWosWCgZ4ESYyXEA&web=1&extg=10f0000&svrbypass=AAuL%2FQsFAAABAAAAAAA3g5IPGM7QqQMWCGZTaRAAAADnaHZTnGbFfAj9RgZXfw6ViwysdPIIE%2FhGm4kzrUSufZeehl7CbSB43g3nxKx2BvQUb7TfQqEftUc%3D&svrnonce=1767073288 | Key=2136947605 | 分辨率=480x852
+[2025-12-30 13:51:09] INFO [Profile API] 收到视频信息请求
+[2025-12-30 13:51:09] INFO [分辨率] 从media获取: 1440x1080
+[2025-12-30 13:51:09] INFO [视频信息] ID=14778411001769105857 | 标题=李世民犹豫太子人选 长孙无忌神助攻#李世民 #神仙剪刀手  | 作者=星XIAOXING | 大小=11.97MB | URL=https://finder.video.qq.com/251/20302/stodownload?encfilekey=Cvvj5Ix3eewK0tHtibORqcsqchXNh0Gf3sJcaYqC2rQBFL46ic36InMXayF0RibicibuQJaIJ9DiajISMxzBIHWDsqb1fbiaHmk8Ukr0maQxiatKicZ23R2QuFA48WdsictYElLq2D&bizid=1023&dotrans=0&hy=SH&idx=1&m=&uzid=7a152&token=ic1n0xDG6awibkKEydiavtTbCHm027bTPct8swuEae4Qy29Y8g2FplCBcttMe4MUkicSPmZvyIH4XC6GuvEiaTSd40qmFq6JAcFiaIaxj9rUIaYAzaTXaz47rZzUHTEP9cs98w2pf93YtlficlDWeSEjI4xVf16vfETl0qHA7S6LkfD5W8&basedata=CAESABoDeFYwIgAqBwjNWhAAGAI&sign=nfcjUfCBcje2muR_q_3_qYNzQKSo6jJTyeYpZw-PLY52J0XgXLpviv-5eSzbXxB4sYBgrH4joxp7YOT0SAEEIw&web=1&extg=10f0000&svrbypass=AAuL%2FQsFAAABAAAAAAA%2FOd6ZzCutfukMCGZTaRAAAADnaHZTnGbFfAj9RgZXfw6ViwysdPIIE8pE89l9pUmkfZeehl7CbSB43ndaQJcLKNVlCoH2sAZHQW4%3D&svrnonce=1767073288 | Key=279830186 | 分辨率=1440x1080
+[2025-12-30 13:51:29] INFO [Profile API] 收到视频信息请求
+[2025-12-30 13:51:29] INFO [分辨率] 从media获取: 480x852
+[2025-12-30 13:51:29] INFO [视频信息] ID=14772724617977403635 | 标题=马超悲剧：200口家被屠，仇没报郁郁而终#三国 #三国演义 #历史 #历史人物 #马超 | 作者=伪善历史1 | 大小=9.64MB | URL=https://finder.video.qq.com/251/20302/stodownload?encfilekey=Cvvj5Ix3eez3Y79SxtvVL0L7CkPM6dFibusn4vVFEyiapj9UQ7vWcUPibeLNIQV862jpax1loO7BheYFd2qsSkqWuzobLeyHNqnB8ms2doPQG8icFor3pdnoPHjnoaJSHPf2hEtRoQklbr9nHRukHNOx6Q&hy=SZ&idx=1&m=2076bf2b625481d7138aa029e0ca827b&uzid=7a198&token=2lt8WBSnjTnwusxB8tr3xUKwefQQhiciaXRKAn2vYPicvpSE72RQFjaibzic5lpCEUxU0BljW7fv8jDmaRBhA9RIYcjZ5RylXksDhogLuK1hZfibSXBeml6PjtickEIgsOlrhwPbGKdvvBzMuCiap4emicU2rqyogC6cweib477uHVeaxnyFc&basedata=CAESABoDeFYwIgAqBwjNWhAAGAI&sign=oZnCcsbqYPPKzGbwpXrLxijqyPLc-YKFL6rOz-8tNLbl4f4L5lFHKMVMeHNrNiarqmFEv1AWosWCgZ4ESYyXEA&web=1&extg=10f0000&svrbypass=AAuL%2FQsFAAABAAAAAAA3g5IPGM7QqQMWCGZTaRAAAADnaHZTnGbFfAj9RgZXfw6ViwysdPIIE%2FhGm4kzrUSufZeehl7CbSB43g3nxKx2BvQUb7TfQqEftUc%3D&svrnonce=1767073288 | Key=2136947605 | 分辨率=480x852
+[2025-12-30 13:51:39] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt
+[2025-12-30 13:51:50] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-30 13:51:54] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-30 15:39:06] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-30 15:39:10] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-30 15:42:08] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt
+[2025-12-30 16:00:55] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-30 16:00:59] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-30 17:04:46] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt
+[2025-12-30 17:05:20] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-30 17:05:24] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-30 17:07:21] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt
+[2025-12-30 17:08:23] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-30 17:08:27] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-30 17:10:30] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt
+[2025-12-30 17:10:41] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-30 17:10:44] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-30 17:25:13] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt
+[2025-12-30 17:26:05] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-30 17:26:10] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-30 17:28:16] INFO [响应] Path=/extensions/chat.json | ContentType=
+[2025-12-30 17:29:31] INFO [响应] Path=/extensions/marketplace.json | ContentType=application/json
+[2025-12-30 17:30:15] INFO [响应] Path=/zh_CN/app_bgp.js | ContentType=application/x-javascript
+[2025-12-30 17:32:03] INFO [脚本注入] Home页面 - 注入视频缓存监控脚本
+[2025-12-30 17:32:03] INFO [页面加载] 视频号页面已加载 | Host=channels.weixin.qq.com | Path=/web/pages/home
+[2025-12-30 17:32:14] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt
+[2025-12-30 18:33:34] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-30 18:33:38] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-30 18:33:45] INFO [脚本注入] Home页面 - 注入视频缓存监控脚本
+[2025-12-30 18:33:45] INFO [页面加载] 视频号页面已加载 | Host=channels.weixin.qq.com | Path=/web/pages/home
+[2025-12-30 18:33:47] INFO [响应] Path=/extensions/chat.json | ContentType=application/json
+[2025-12-30 18:34:27] INFO [响应] Path=/extensions/chat.json | ContentType=
+[2025-12-30 18:34:47] INFO [响应] Path=/https://github.com/clash-verge-rev/clash-verge-rev/releases/download/updater/update-proxy.json | ContentType=application/octet-stream
+[2025-12-30 18:35:05] INFO [响应] Path=/extensions/marketplace.json | ContentType=application/json
+[2025-12-30 18:35:21] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt
+[2025-12-30 18:35:33] INFO [配置加载] 成功 | 路径=config.yaml
+[2025-12-30 18:35:37] INFO [系统启动] 服务已启动 | 端口=2025 | 代理模式=进程代理
+[2025-12-30 18:35:40] INFO [脚本注入] Home页面 - 注入视频缓存监控脚本
+[2025-12-30 18:35:40] INFO [页面加载] 视频号页面已加载 | Host=channels.weixin.qq.com | Path=/web/pages/home
+[2025-12-30 18:35:59] INFO [系统关闭] 服务正在关闭 | 原因=收到信号: interrupt

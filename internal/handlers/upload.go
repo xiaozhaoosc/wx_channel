@@ -201,8 +201,8 @@ func (h *UploadHandler) HandleUploadChunk(Conn SunnyNet.ConnHTTP) bool {
 		return true
 	}
 	// 设置 Content-Type
-	if ct := Conn.GetRequestHeader()["Content-Type"]; len(ct) > 0 {
-		mockReq.Header.Set("Content-Type", ct[0])
+	if ct := reqHeaders.Get("Content-Type"); ct != "" {
+		mockReq.Header.Set("Content-Type", ct)
 	}
 
 	// 解析multipart表单
@@ -383,10 +383,7 @@ func (h *UploadHandler) HandleCompleteUpload(Conn SunnyNet.ConnHTTP) bool {
 	}
 
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		auth := ""
-		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
-			auth = v[0]
-		}
+		auth := nf_http.Header(Conn.GetRequestHeader()).Get("X-Local-Auth")
 		if auth != h.getConfig().SecretToken {
 			headers := make(nf_http.Header)
 			headers.Set("Content-Type", "application/json")
@@ -396,10 +393,7 @@ func (h *UploadHandler) HandleCompleteUpload(Conn SunnyNet.ConnHTTP) bool {
 		}
 	}
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := ""
-		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
-			origin = v[0]
-		}
+		origin := nf_http.Header(Conn.GetRequestHeader()).Get("Origin")
 		if origin != "" {
 			allowed := false
 			for _, o := range h.getConfig().AllowedOrigins {
@@ -557,24 +551,18 @@ func (h *UploadHandler) HandleSaveVideo(Conn SunnyNet.ConnHTTP) bool {
 		return false
 	}
 
+	// 解析请求头
+	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
+
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		auth := ""
-		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
-			auth = v[0]
-		}
+		auth := reqHeaders.Get("X-Local-Auth")
 		if auth != h.getConfig().SecretToken {
-			headers := make(nf_http.Header)
-			headers.Set("Content-Type", "application/json")
-			headers.Set("X-Content-Type-Options", "nosniff")
-			Conn.StopRequest(401, `{"success":false,"error":"unauthorized"}`, headers)
+			h.sendJSONResponse(Conn, 401, []byte(`{"success":false,"error":"unauthorized"}`))
 			return true
 		}
 	}
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := ""
-		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
-			origin = v[0]
-		}
+		origin := reqHeaders.Get("Origin")
 		if origin != "" {
 			allowed := false
 			for _, o := range h.getConfig().AllowedOrigins {
@@ -584,10 +572,7 @@ func (h *UploadHandler) HandleSaveVideo(Conn SunnyNet.ConnHTTP) bool {
 				}
 			}
 			if !allowed {
-				headers := make(nf_http.Header)
-				headers.Set("Content-Type", "application/json")
-				headers.Set("X-Content-Type-Options", "nosniff")
-				Conn.StopRequest(403, `{"success":false,"error":"forbidden_origin"}`, headers)
+				h.sendJSONResponse(Conn, 403, []byte(`{"success":false,"error":"forbidden_origin"}`))
 				return true
 			}
 		}
@@ -604,8 +589,8 @@ func (h *UploadHandler) HandleSaveVideo(Conn SunnyNet.ConnHTTP) bool {
 		return true
 	}
 	// 设置 Content-Type
-	if ct := Conn.GetRequestHeader()["Content-Type"]; len(ct) > 0 {
-		mockReq.Header.Set("Content-Type", ct[0])
+	if ct := reqHeaders.Get("Content-Type"); ct != "" {
+		mockReq.Header.Set("Content-Type", ct)
 	}
 
 	// 解析multipart表单
@@ -729,10 +714,7 @@ func (h *UploadHandler) HandleSaveCover(Conn SunnyNet.ConnHTTP) bool {
 
 	// 授权校验
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		auth := ""
-		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
-			auth = v[0]
-		}
+		auth := nf_http.Header(Conn.GetRequestHeader()).Get("X-Local-Auth")
 		if auth != h.getConfig().SecretToken {
 			headers := make(nf_http.Header)
 			headers.Set("Content-Type", "application/json")
@@ -742,10 +724,7 @@ func (h *UploadHandler) HandleSaveCover(Conn SunnyNet.ConnHTTP) bool {
 		}
 	}
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := ""
-		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
-			origin = v[0]
-		}
+		origin := nf_http.Header(Conn.GetRequestHeader()).Get("Origin")
 		if origin != "" {
 			allowed := false
 			for _, o := range h.getConfig().AllowedOrigins {
@@ -910,10 +889,7 @@ func (h *UploadHandler) HandleDownloadVideo(Conn SunnyNet.ConnHTTP) bool {
 
 	// 授权校验
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		auth := ""
-		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
-			auth = v[0]
-		}
+		auth := nf_http.Header(Conn.GetRequestHeader()).Get("X-Local-Auth")
 		if auth != h.getConfig().SecretToken {
 			headers := make(nf_http.Header)
 			headers.Set("Content-Type", "application/json")
@@ -923,10 +899,7 @@ func (h *UploadHandler) HandleDownloadVideo(Conn SunnyNet.ConnHTTP) bool {
 		}
 	}
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := ""
-		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
-			origin = v[0]
-		}
+		origin := nf_http.Header(Conn.GetRequestHeader()).Get("Origin")
 		if origin != "" {
 			allowed := false
 			for _, o := range h.getConfig().AllowedOrigins {
@@ -1261,10 +1234,7 @@ func (h *UploadHandler) HandleUploadStatus(Conn SunnyNet.ConnHTTP) bool {
 	}
 
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		auth := ""
-		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
-			auth = v[0]
-		}
+		auth := nf_http.Header(Conn.GetRequestHeader()).Get("X-Local-Auth")
 		if auth != h.getConfig().SecretToken {
 			headers := make(nf_http.Header)
 			headers.Set("Content-Type", "application/json")
@@ -1274,10 +1244,7 @@ func (h *UploadHandler) HandleUploadStatus(Conn SunnyNet.ConnHTTP) bool {
 		}
 	}
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := ""
-		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
-			origin = v[0]
-		}
+		origin := nf_http.Header(Conn.GetRequestHeader()).Get("Origin")
 		if origin != "" {
 			allowed := false
 			for _, o := range h.getConfig().AllowedOrigins {
@@ -1350,10 +1317,7 @@ func (h *UploadHandler) sendSuccessResponse(Conn SunnyNet.ConnHTTP) {
 	headers.Set("Expires", "0")
 	headers.Set("X-Content-Type-Options", "nosniff")
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := ""
-		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
-			origin = v[0]
-		}
+		origin := nf_http.Header(Conn.GetRequestHeader()).Get("Origin")
 		if origin != "" {
 			for _, o := range h.getConfig().AllowedOrigins {
 				if o == origin {
@@ -1375,10 +1339,7 @@ func (h *UploadHandler) sendJSONResponse(Conn SunnyNet.ConnHTTP, statusCode int,
 	headers.Set("Content-Type", "application/json")
 	headers.Set("X-Content-Type-Options", "nosniff")
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := ""
-		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
-			origin = v[0]
-		}
+		origin := nf_http.Header(Conn.GetRequestHeader()).Get("Origin")
 		if origin != "" {
 			for _, o := range h.getConfig().AllowedOrigins {
 				if o == origin {
@@ -1400,10 +1361,7 @@ func (h *UploadHandler) sendErrorResponse(Conn SunnyNet.ConnHTTP, err error) {
 	headers.Set("Content-Type", "application/json")
 	headers.Set("X-Content-Type-Options", "nosniff")
 	if h.getConfig() != nil && len(h.getConfig().AllowedOrigins) > 0 {
-		origin := ""
-		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
-			origin = v[0]
-		}
+		origin := nf_http.Header(Conn.GetRequestHeader()).Get("Origin")
 		if origin != "" {
 			for _, o := range h.getConfig().AllowedOrigins {
 				if o == origin {

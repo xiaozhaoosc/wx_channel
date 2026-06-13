@@ -145,7 +145,9 @@ func (h *BatchHandler) HandleBatchStart(Conn SunnyNet.ConnHTTP) bool {
 		return false
 	}
 
-	utils.Info("📥 [批量下载] 收到 batch_start 请求")
+	// 解析请求头
+	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
+	utils.LogInfo("[批量下载] 收到 batch_start 请求 | URL=%s", Conn.URL())
 
 	// 处理 CORS 预检请求
 	if Conn.Method() == "OPTIONS" {
@@ -161,10 +163,7 @@ func (h *BatchHandler) HandleBatchStart(Conn SunnyNet.ConnHTTP) bool {
 
 	// 授权校验
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		auth := ""
-		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
-			auth = v[0]
-		}
+		auth := reqHeaders.Get("X-Local-Auth")
 		if auth != h.getConfig().SecretToken {
 			h.sendErrorResponse(Conn, fmt.Errorf("unauthorized"))
 			return true
@@ -206,14 +205,8 @@ func (h *BatchHandler) HandleBatchStart(Conn SunnyNet.ConnHTTP) bool {
 	pageSource := req.PageSource
 	if pageSource == "" {
 		// 如果请求体中没有指定，则通过请求头判断
-		origin := ""
-		if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
-			origin = v[0]
-		}
-		referer := ""
-		if v := Conn.GetRequestHeader()["Referer"]; len(v) > 0 {
-			referer = v[0]
-		}
+		origin := reqHeaders.Get("Origin")
+		referer := reqHeaders.Get("Referer")
 
 		if strings.Contains(origin, "channels.weixin.qq.com") || strings.Contains(referer, "channels.weixin.qq.com") {
 			// 从视频号页面发起的请求，尝试从Referer中提取页面类型
@@ -989,10 +982,7 @@ func (h *BatchHandler) HandleBatchProgress(Conn SunnyNet.ConnHTTP) bool {
 
 	// 授权校验
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		auth := ""
-		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
-			auth = v[0]
-		}
+		auth := nf_http.Header(Conn.GetRequestHeader()).Get("X-Local-Auth")
 		if auth != h.getConfig().SecretToken {
 			h.sendErrorResponse(Conn, fmt.Errorf("unauthorized"))
 			return true
@@ -1072,10 +1062,7 @@ func (h *BatchHandler) HandleBatchCancel(Conn SunnyNet.ConnHTTP) bool {
 
 	// 授权校验
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		auth := ""
-		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
-			auth = v[0]
-		}
+		auth := nf_http.Header(Conn.GetRequestHeader()).Get("X-Local-Auth")
 		if auth != h.getConfig().SecretToken {
 			h.sendErrorResponse(Conn, fmt.Errorf("unauthorized"))
 			return true
@@ -1125,10 +1112,7 @@ func (h *BatchHandler) HandleBatchFailed(Conn SunnyNet.ConnHTTP) bool {
 
 	// 授权校验
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		auth := ""
-		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
-			auth = v[0]
-		}
+		auth := nf_http.Header(Conn.GetRequestHeader()).Get("X-Local-Auth")
 		if auth != h.getConfig().SecretToken {
 			h.sendErrorResponse(Conn, fmt.Errorf("unauthorized"))
 			return true
@@ -1200,10 +1184,7 @@ func (h *BatchHandler) HandleBatchResume(Conn SunnyNet.ConnHTTP) bool {
 
 	// 授权校验
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		auth := ""
-		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
-			auth = v[0]
-		}
+		auth := nf_http.Header(Conn.GetRequestHeader()).Get("X-Local-Auth")
 		if auth != h.getConfig().SecretToken {
 			h.sendErrorResponse(Conn, fmt.Errorf("unauthorized"))
 			return true
@@ -1276,10 +1257,7 @@ func (h *BatchHandler) HandleBatchClear(Conn SunnyNet.ConnHTTP) bool {
 
 	// 授权校验
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
-		auth := ""
-		if v := Conn.GetRequestHeader()["X-Local-Auth"]; len(v) > 0 {
-			auth = v[0]
-		}
+		auth := nf_http.Header(Conn.GetRequestHeader()).Get("X-Local-Auth")
 		if auth != h.getConfig().SecretToken {
 			h.sendErrorResponse(Conn, fmt.Errorf("unauthorized"))
 			return true
@@ -1324,10 +1302,7 @@ func (h *BatchHandler) sendSuccessResponse(Conn SunnyNet.ConnHTTP, data map[stri
 	headers.Set("X-Content-Type-Options", "nosniff")
 
 	// CORS - 允许所有来源（因为是本地服务）
-	origin := ""
-	if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
-		origin = v[0]
-	}
+	origin := nf_http.Header(Conn.GetRequestHeader()).Get("Origin")
 	if origin != "" {
 		headers.Set("Access-Control-Allow-Origin", origin)
 		headers.Set("Vary", "Origin")
@@ -1346,10 +1321,7 @@ func (h *BatchHandler) sendErrorResponse(Conn SunnyNet.ConnHTTP, err error) {
 	headers.Set("X-Content-Type-Options", "nosniff")
 
 	// CORS - 允许所有来源（因为是本地服务）
-	origin := ""
-	if v := Conn.GetRequestHeader()["Origin"]; len(v) > 0 {
-		origin = v[0]
-	}
+	origin := nf_http.Header(Conn.GetRequestHeader()).Get("Origin")
 	if origin != "" {
 		headers.Set("Access-Control-Allow-Origin", origin)
 		headers.Set("Vary", "Origin")

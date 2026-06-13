@@ -59,7 +59,8 @@ func (h *APIHandler) HandleProfile(Conn SunnyNet.ConnHTTP) bool {
 
 	// 解析请求头
 	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
-	utils.LogInfo("[Profile API] 收到视频信息请求 | URL=%s", Conn.URL())
+	// 增加详细日志以便诊断
+	utils.Info("[Profile API] 收到视频信息请求 | URL=%s", Conn.URL())
 
 	// 授权与来源校验（可选）
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
@@ -424,10 +425,14 @@ func (h *APIHandler) HandleTip(Conn SunnyNet.ConnHTTP) bool {
 	err = json.Unmarshal(body, &data)
 	if err != nil {
 		utils.HandleError(err, "解析tip JSON数据")
-		// 即使JSON解析失败，也返回空响应，避免重复处理
+		// 即使JSON解析失败，也打印原始请求，以便调试
+		utils.Info("收到无法解析的 Tip 请求: %s", string(body))
 		h.sendEmptyResponse(Conn)
 		return true
 	}
+
+	// 增加调试日志输出到控制台
+	utils.Info("[前端日志] %s", data.Msg)
 
 	utils.PrintLabelValue("💡", "[提醒]", data.Msg)
 
@@ -562,6 +567,8 @@ func (h *APIHandler) HandlePageURL(Conn SunnyNet.ConnHTTP) bool {
 	}
 
 	reqHeaders := nf_http.Header(Conn.GetRequestHeader())
+	// 增加详细日志以便诊断
+	utils.Info("[PageURL API] 收到页面URL捕获请求 | URL=%s", Conn.URL())
 
 	if h.getConfig() != nil && h.getConfig().SecretToken != "" {
 		auth := reqHeaders.Get("X-Local-Auth")
